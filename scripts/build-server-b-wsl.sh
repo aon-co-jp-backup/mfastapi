@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
 # 段階B: MojoのHTTPサーバー + Pythonハンドラ(境界越え)をビルドし、起動して確認する。要 setup-flare-wsl.sh。
-#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/build-server-b-wsl.sh
+#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/build-server-b-wsl.sh
 set -uo pipefail
 export PATH="$HOME/.pixi/bin:$HOME/.local/bin:/usr/bin:/bin"
 cd "$HOME/flare"
-mkdir -p "$HOME/mfastapi-flare"
-pixi run mojo build -I . -I /mnt/f/mfastapi/mojo /mnt/f/mfastapi/mojo/server_b.mojo -o "$HOME/mfastapi-flare/server_b" 2>&1 | tail -30
-ls -l "$HOME/mfastapi-flare/server_b" || exit 1
+mkdir -p "$HOME/fastapim-flare"
+pixi run mojo build -I . -I /mnt/f/FastAPIM/mojo /mnt/f/FastAPIM/mojo/server_b.mojo -o "$HOME/fastapim-flare/server_b" 2>&1 | tail -30
+ls -l "$HOME/fastapim-flare/server_b" || exit 1
 # 埋め込むPython(共有ライブラリ)を探す。uvのPython 3.12を使う。
 uv python install 3.12 >/dev/null 2>&1
 PY=$(uv python find 3.12)
 LIB=$(find "$(dirname "$PY")/.." -name 'libpython3.12.so*' 2>/dev/null | head -1)
 echo "python=$PY lib=$LIB"
 export MOJO_PYTHON_LIBRARY="$LIB"
-"$HOME/mfastapi-flare/server_b" 8811 /mnt/f/mfastapi/examples >/tmp/server_b.log 2>&1 &
+"$HOME/fastapim-flare/server_b" 8811 /mnt/f/FastAPIM/examples >/tmp/server_b.log 2>&1 &
 pid=$!
 for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8811/health && break; sleep 1; done
 for p in /health /py/hello/Taro /py/fib/20 "/py/stats?csv=1,2,3.5" /fib/20 /py/fib/99 /nope; do echo "$p => $(curl -s -w ' [%{http_code}]' http://127.0.0.1:8811$p)"; done

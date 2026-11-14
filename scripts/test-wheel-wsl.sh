@@ -2,8 +2,8 @@
 # sdist/wheelをビルドして新しいvenvに入れ、cext経由で accelerate が動くことを確認する。
 set -euo pipefail
 export PATH="$HOME/.local/bin:/usr/bin:/bin"
-W="$HOME/mfastapi-wheel"; rm -rf "$W"; mkdir -p "$W"
-cp -r /mnt/f/mfastapi/pyproject.toml /mnt/f/mfastapi/setup.py /mnt/f/mfastapi/MANIFEST.in /mnt/f/mfastapi/README.md /mnt/f/mfastapi/c /mnt/f/mfastapi/python "$W/"
+W="$HOME/fastapim-wheel"; rm -rf "$W"; mkdir -p "$W"
+cp -r /mnt/f/FastAPIM/pyproject.toml /mnt/f/FastAPIM/setup.py /mnt/f/FastAPIM/MANIFEST.in /mnt/f/FastAPIM/README.md /mnt/f/FastAPIM/c /mnt/f/FastAPIM/python "$W/"
 cd "$W"
 uv build --wheel --python 3.12 -o dist >/dev/null
 ls dist

@@ -26,8 +26,8 @@ python -m pytest -q tests
 
 ## Mojo拡張(WSL)
 ```bash
-wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/setup-mojo-wsl.sh   # 初回: uv + Mojo(nightly)導入
-wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/build-mojo-wsl.sh   # ビルド + tests/mojo 実行
+wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/setup-mojo-wsl.sh   # 初回: uv + Mojo(nightly)導入
+wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/build-mojo-wsl.sh   # ビルド + tests/mojo 実行
 ```
 PowerShellから実行する(Git Bashは`/mnt/...`を書き換える。Windows側PATHの括弧で壊れるため、必ずスクリプト経由)。
 Mojoの構文はnightlyで変わる(`len(String)`不可→`byte_length()`など)。版は`setup-mojo-wsl.sh`で固定していないため要注意。
@@ -37,8 +37,8 @@ Mojoの構文はnightlyで変わる(`len(String)`不可→`byte_length()`など)
 - `python/fastapim/native.py`: ctypesの薄いラッパー(Python 2.7/3.x構文の共通部分のみ)。ライブラリは`FASTAPIM_LIB`または同ディレクトリの`libfastapim.so`から探す。
 - 確認(WSL, Linux x86_64): Python **2.7.18 / 3.9 / 3.12 / 3.14** で `tests/mojo/test_cabi.py` が成功。
 ```bash
-wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/build-py27-wsl.sh   # 検証用のPython 2.7を~/py27へ(任意)
-wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/test-cabi-wsl.sh    # ビルド+2.7/3.xで実行
+wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/build-py27-wsl.sh   # 検証用のPython 2.7を~/py27へ(任意)
+wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/test-cabi-wsl.sh    # ビルド+2.7/3.xで実行
 ```
 **制限(重要)**: 本家FastAPI・Pydantic・Starletteは**Python 3専用**なので、Python 2から使えるのは`native.py`のネイティブ関数(パス照合など)だけ。FastAPIアプリのIR収集(`collect_ir`)はPython 3のみ。
 Python 2はEOL(2020)のため検証用に限り、Python 2.7のビルドにはモダンGCC向けに`-std=gnu11`が必要だった。未確認: Windows(`.dll`)・macOS、Mojo拡張(PythonModuleBuilder版)との性能比較。
@@ -57,7 +57,7 @@ Mojoの公式対応はLinux(x86-64/ARM64)・macOS(Apple silicon)で、Windowsは
 | FreeBSD等のUnix | C | **未確認**(`CMakeLists.txt`で`.so`を作る想定) |
 
 ```bash
-wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/test-cross-wsl.sh   # Linux: C版+Mojo版、Python 2.7/3.xとパリティ
+wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/test-cross-wsl.sh   # Linux: C版+Mojo版、Python 2.7/3.xとパリティ
 .\scriptsuild-windows.ps1                                       # Windows (PowerShell)
 bash scripts/build-android.sh                                      # Android NDK (4 ABI、build/android/)
 ```
