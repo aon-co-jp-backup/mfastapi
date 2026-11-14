@@ -243,3 +243,10 @@ Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...
 - **境界越えの費用**(1リクエスト): `/health` 323µs に対し `/py/hello/Taro` 350µs(Pythonを呼ぶ追加費用は約30µs)。計算の中身はPythonのままなので、`fib(30)`は純Mojo版 5.2ms に対しPython版 243ms(約47倍)。つまり**重い所はMojoのルートに置き、利用者の柔軟なロジックだけPythonに任せる**使い分けになる。
 - **制限**: Pythonは1プロセス1インタープリタ(GIL)のため、`num_workers=1`に固定している(複数ワーカーでの安全なGIL処理は未検証)。`MOJO_PYTHON_LIBRARY`で`libpython`を指定する必要がある。FastAPIの`Depends`・Pydantic検証・ミドルウェアは使えない(Python側の関数は文字列を受けて文字列を返すだけ)。
 - 検証はLinux(WSL)のみ。flareは外部の若いプロジェクト(2026-11時点)で、APIが変わる可能性がある。
+
+### 段階B・CでもOpenAPIと422をFastAPIにそろえる(`mojo/mfastapi_web.mojo`、2026-11-14)
+段階B・CのMojoサーバーも、FastAPI(+Mojo関数版)と同じ形式で次を返す。
+- **422**: `{"detail":[{"type":"int_parsing","loc":["path","n"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"abc"}]}`、必須欠落は `type:"missing"`(`input:null`)。
+- **`/openapi.json`**(OpenAPI 3.1、parameters・operationId・422・`HTTPValidationError`/`ValidationError`)と **`/docs`**(Swagger UI)。
+- 実測(WSL、`scripts/test-server-compat-wsl.sh`=段階C、`scripts/test-server-b-compat-wsl.sh`=段階B): 応答・422本文は C 17件 / B 12件、OpenAPIは C 3経路 / B 4経路で、FastAPIとの差異 0。
+- 既知の差: intは `[+-]数字` のみ受理(Pydanticは "5.0"・" 5 " 等も許容)、400の本文は `{"detail":"..."}`、404本文の形式は別、Swagger UIはCDN読み込み、段階Bの200スキーマは型付けなし、段階BはGILのため `num_workers=1`。
