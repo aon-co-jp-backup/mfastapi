@@ -3,7 +3,7 @@ from std.python import Python, PythonObject
 from std.python.bindings import PythonModuleBuilder
 from std.os import abort
 
-from mfastapi_match import Ctx, FPtr, match_from
+from mfastapi_match import Ctx, FPtr, K_FLOAT, K_INT, K_UUID, match_from
 from mfastapi_table import RouteTable, first_match
 
 
@@ -17,6 +17,7 @@ def PyInit_mfastapi_native() abi("C") -> PythonObject:
             m.add_type[PyRouteTable]("RouteTable")
             .def_py_init[PyRouteTable.py_init]()
             .def_method[PyRouteTable.first_match]("first_match")
+            .def_method[PyRouteTable.match]("match")
             .def_method[PyRouteTable.size]("size")
         )
         return m.finalize()
@@ -57,8 +58,21 @@ def path_matches(template: PythonObject, path: PythonObject) raises -> PythonObj
 
 struct PyRouteTable(Movable, Writable):
     var table: RouteTable
+    # 毎回importや文字列生成をしないよう、パラメータ名のstrと変換関数を保持する
+    var keys: List[PythonObject]
+    var int_fn: PythonObject
+    var float_fn: PythonObject
+    var uuid_cls: PythonObject
 
-    def __init__(out self, var t: RouteTable):
+    def __init__(out self, var t: RouteTable) raises:
+        var keys = List[PythonObject]()
+        for i in range(len(t.pnames)):
+            keys.append(PythonObject(t.pnames[i]))
+        self.keys = keys^
+        var builtins = Python.import_module("builtins")
+        self.int_fn = builtins.int
+        self.float_fn = builtins.float
+        self.uuid_cls = Python.import_module("uuid").UUID
         self.table = t^
 
     @staticmethod
@@ -86,6 +100,48 @@ struct PyRouteTable(Movable, Writable):
         if r == -3:
             raise Error("path matching gave up (backtracking budget)")
         return PythonObject(r)
+
+    @staticmethod
+    def match(
+        py_self: PythonObject, path: PythonObject
+    ) raises -> PythonObject:
+        """Return None, or (index, path_params) with Starlette-style converted values."""
+        var self_ptr = py_self.downcast_value_ptr[Self]()
+        var p = utf8_of(path)
+        var pp = rebind[FPtr](p.unsafe_ptr())
+        var r = first_match(self_ptr[].table, pp, p.byte_length())
+        if r == -3:
+            raise Error("path matching gave up (backtracking budget)")
+        if r < 0:
+            return PythonObject(None)
+        ref t = self_ptr[].table
+        ref me = self_ptr[]
+        var params = Python.dict()
+        var pb = Int(t.pbase[r])
+        for j in range(Int(t.pcount[r])):
+            var s0 = Int(t.caps[2 * j])
+            var e0 = Int(t.caps[2 * j + 1])
+            var kind = Int(t.pkinds[pb + j])
+            var val: PythonObject
+            if kind == K_INT and e0 - s0 <= 18:
+                var n = 0
+                for q in range(s0, e0):
+                    n = n * 10 + Int(pp.unsafe_offset(q)[] - 48)
+                val = PythonObject(n)
+            else:
+                var text = PythonObject(
+                    String(unsafe_from_utf8=Span(unsafe_ptr=pp.unsafe_offset(s0), length=e0 - s0))
+                )
+                if kind == K_INT:
+                    val = me.int_fn(text)
+                elif kind == K_FLOAT:
+                    val = me.float_fn(text)
+                elif kind == K_UUID:
+                    val = me.uuid_cls(text)
+                else:
+                    val = text
+            params[me.keys[pb + j]] = val
+        return Python.tuple(PythonObject(r), params)
 
     @staticmethod
     def size(py_self: PythonObject) raises -> PythonObject:

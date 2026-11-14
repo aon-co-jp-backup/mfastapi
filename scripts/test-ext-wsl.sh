@@ -15,3 +15,5 @@ for v in 3.12 3.14; do
 done
 echo "[bench]"
 uv run --no-project --python 3.12 --with starlette python /mnt/f/mfastapi/bench/bench_match.py
+echo "[bench params]"
+uv run --no-project --python 3.12 --with starlette python /mnt/f/mfastapi/bench/bench_params.py

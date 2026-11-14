@@ -40,8 +40,14 @@ for _ in range(N):
         except (AssertionError, ValueError):
             continue
         templates.append(t)
-    rxs = [compile_path(t)[0] for t in templates]
-    table = ext.RouteTable(templates)
+    compiled = [compile_path(t) for t in templates]
+    rxs = [c[0] for c in compiled]
+    try:
+        table = ext.RouteTable(templates)
+    except Exception as e:  # 重複パラメータ名はStarlette側もValueErrorで拒否している(compile_pathで除外済みのはず)
+        print("RouteTable rejected", ascii(templates), e)
+        bad += 1
+        continue
     assert table.size() == len(templates)
     for _ in range(4):
         p = path()
@@ -50,6 +56,18 @@ for _ in range(N):
         if got != want:
             bad += 1
             print("MISMATCH table", ascii(templates), ascii(p), want, got)
+        # path_params: Starletteのgroupdict + convertor.convert と一致するか
+        got_m = table.match(p)
+        if want == -1:
+            ok = got_m is None
+        else:
+            m = rxs[want].match(p)
+            exp = {k: compiled[want][2][k].convert(v) for k, v in m.groupdict().items()}
+            ok = got_m is not None and got_m[0] == want and got_m[1] == exp and all(
+                type(got_m[1][k]) is type(exp[k]) for k in exp)
+        if not ok:
+            bad += 1
+            print("MISMATCH params", ascii(templates), ascii(p), want, got_m)
         i = rng.randrange(len(templates))
         if ext.path_matches(templates[i], p) != (rxs[i].match(p) is not None):
             bad += 1

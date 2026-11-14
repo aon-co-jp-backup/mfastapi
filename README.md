@@ -102,4 +102,29 @@ t.first_match("/items/7")   # -> 1
 | 200・外れ | 47,210 | 8,665 | **1,292** | 36.5倍 |
 
 先頭ヒットでもStarletteに勝つ(前回のctypes版は0.3倍=負け)。残る固定費は約230ns(Pythonのメソッド呼び出し約140ns+その他)で、これ以上はPython側の呼び出し機構の限界に近い。
-注意: ①実アプリのStarletteは照合後に`scope`更新・パラメータ変換も行うため全体の改善はこの表より小さい。②この1台・Linux(WSL)・Python 3.12のみの測定。③今回の拡張版は`RouteTable`の照合だけで、パラメータ値の取り出し(`path_params`)は未実装(次の課題)。④Mojo拡張のためPython 2・Windowsネイティブ・Android・iOSでは使えない(ctypes/C版にフォールバック)。
+注意: ①実アプリのStarletteは照合後に`scope`更新・パラメータ変換も行うため全体の改善はこの表より小さい。②この1台・Linux(WSL)・Python 3.12のみの測定。③パラメータ値の取り出しは下記の`match()`で対応。④Mojo拡張のためPython 2・Windowsネイティブ・Android・iOSでは使えない(ctypes/C版にフォールバック)。
+
+### パラメータ値の取り出し `RouteTable.match`(2026-11-14)
+`table.match(path)` は一致しなければ `None`、一致すれば `(ルート番号, path_params)` を返す。値はStarletteの`convertor.convert`と同じ型に変換する(`int`→`int`、`float`→`float`、`uuid`→`uuid.UUID`、`str`/`path`→`str`。19桁以上の整数はPythonの`int()`で変換)。
+```python
+t = ext.RouteTable(["/users/{uid}/posts/{pid:int}"])
+t.match("/users/alice/posts/77")   # -> (0, {'uid': 'alice', 'pid': 77})
+```
+- 登録時に、パラメータ名の重複(Starletteと同じく`ValueError`相当)・17個以上のパラメータ・未知の型名を拒否する。
+- 内部: 照合中に各パラメータの[開始,終端]を記録(バックトラックで上書きされ、成功した経路のものだけが残る)。パラメータ名のstrと`int`/`float`/`UUID`は表に保持し、毎回の`import`・文字列生成をなくした(これで`float`が0.7倍→1.6倍に改善)。
+- **正しさ**: `bench/diff_table.py`が`match`の結果(値と**型**)をStarletteの`groupdict()`+`convert`と突き合わせ、Python 3.12・3.14で各16万件・不一致0。
+
+**性能**(`bench/bench_params.py`、Python 3.12・WSL、Starlette = `match`+`groupdict`+`convert`、1回あたりns):
+
+| ケース | Starlette | `ext.match` | 倍率 |
+|---|---|---|---|
+| 静的 `/health` | 811 | 436 | 1.9倍 |
+| `/items/{id:int}` | 1,271 | 598 | 2.1倍 |
+| `/users/{uid}/posts/{pid:int}` | 1,599 | 837 | 1.9倍 |
+| `/files/{p:path}` | 1,132 | 643 | 1.8倍 |
+| `/m/{x:float}` | 1,370 | 864 | 1.6倍 |
+| `/u/{u:uuid}` | 3,377 | 2,953 | 1.1倍 |
+
+`uuid`はPython標準の`uuid.UUID(...)`の生成自体が遅く(約2.5µs)、そこは両者共通のため差が出ない。値を取り出さない`first_match`(約250ns)に比べ`match`が約180ns遅いのは、結果の辞書とタプルの生成費用。
+
+**trie(先頭リテラルの木)化は見送り**: 200ルート末尾でも約3.5µs(1ルートあたり約17ns、Starletteの約13.6倍速い)で、効くのは数百〜数千ルートのときだけ。実装の複雑さ(順序を保つ候補集合の併合)に見合う利得が測れていないため、未実装。必要になったら`bench_match.py`のNを増やして再評価する。

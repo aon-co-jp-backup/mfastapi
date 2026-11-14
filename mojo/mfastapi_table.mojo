@@ -14,6 +14,7 @@ from mfastapi_match import (
 )
 
 comptime IPtr = Pointer[Int32, MutUntrackedOrigin]
+comptime MAX_PARAMS = 16
 comptime LIT = -1  # トークン種別: リテラル(それ以外はK_*)
 
 
@@ -24,6 +25,12 @@ struct RouteTable(Movable, Writable):
     var base: List[Int32]  # 各ルートの ops 内の開始位置
     var ntok: List[Int32]
     var count: Int
+    # パラメータ名・種別(ルートごとに連続して並べる)
+    var pnames: List[String]
+    var pkinds: List[Int32]
+    var pbase: List[Int32]
+    var pcount: List[Int32]
+    var caps: List[Int32]  # 直近の照合で得た [開始,終端] の並び(GILの下で使い回す)
 
     def __init__(out self):
         self.ops = List[Int32]()
@@ -31,6 +38,11 @@ struct RouteTable(Movable, Writable):
         self.base = List[Int32]()
         self.ntok = List[Int32]()
         self.count = 0
+        self.pnames = List[String]()
+        self.pkinds = List[Int32]()
+        self.pbase = List[Int32]()
+        self.pcount = List[Int32]()
+        self.caps = List[Int32](length=2 * MAX_PARAMS, fill=0)
 
     def write_to(self, mut writer: Some[Writer]):
         t"RouteTable({self.count} routes)".write_to(writer)
@@ -43,6 +55,8 @@ struct RouteTable(Movable, Writable):
             0,
         )
         self.base.append(Int32(len(self.ops)))
+        self.pbase.append(Int32(len(self.pnames)))
+        var np = 0
         var n = 0
         var i = 0
         var lit_start = len(self.lits)
@@ -58,9 +72,22 @@ struct RouteTable(Movable, Writable):
                         self.ops.append(Int32(len(self.lits) - lit_start))
                         n += 1
                         lit_start = len(self.lits)
+                    # 名前(コロンの手前まで)を取り出して重複を拒否する(Starletteと同じ)
+                    var ne = i + 1
+                    while ne < c.tl and c.tb(ne) != 58 and c.tb(ne) != 125:
+                        ne += 1
+                    var name = String(unsafe_from_utf8=Span(unsafe_ptr=tpl.unsafe_ptr().unsafe_offset(i + 1), length=ne - i - 1))
+                    for q in range(np):
+                        if self.pnames[len(self.pnames) - np + q] == name:
+                            raise Error("Duplicated param name " + name + " at path " + tpl)
+                    if np >= MAX_PARAMS:
+                        raise Error("too many path params (max 16): " + tpl)
+                    self.pnames.append(name)
+                    self.pkinds.append(Int32(pr[2]))
                     self.ops.append(Int32(pr[2]))
                     self.ops.append(0)
-                    self.ops.append(0)
+                    self.ops.append(Int32(np))  # パラメータの序数
+                    np += 1
                     n += 1
                     i = pr[1]
                     continue
@@ -72,12 +99,16 @@ struct RouteTable(Movable, Writable):
             self.ops.append(Int32(len(self.lits) - lit_start))
             n += 1
         self.ntok.append(Int32(n))
+        self.pcount.append(Int32(np))
         self.count += 1
 
 
 def try_ends_t(
     ops: IPtr,
     lits: FPtr,
+    caps: IPtr,
+    k: Int,
+    start: Int,
     base: Int,
     nt: Int,
     ti: Int,
@@ -95,7 +126,9 @@ def try_ends_t(
         steps += 1
         if steps > BUDGET:
             return -2
-        var r = match_t(ops, lits, base, nt, ti, p, pl, e, steps)
+        caps.unsafe_offset(2 * k)[] = Int32(start)
+        caps.unsafe_offset(2 * k + 1)[] = Int32(e)
+        var r = match_t(ops, lits, caps, base, nt, ti, p, pl, e, steps)
         if r != 0:
             return r
         e -= 1
@@ -105,6 +138,7 @@ def try_ends_t(
 def match_t(
     ops: IPtr,
     lits: FPtr,
+    caps: IPtr,
     base: Int,
     nt: Int,
     ti_in: Int,
@@ -130,24 +164,27 @@ def match_t(
             ti += 1
             continue
         var e = pi
+        var k = Int(ops.unsafe_offset(o + 2)[])
         if kind == K_STR:
             while e < pl and p.unsafe_offset(e)[] != 47:
                 e += 1
             if e == pi:
                 return 0
             if ti + 1 == nt and e == pl:  # 末尾のstr: 取り切って終わり(分割の余地なし)
+                caps.unsafe_offset(2 * k)[] = Int32(pi)
+                caps.unsafe_offset(2 * k + 1)[] = Int32(e)
                 return 1
-            return try_ends_t(ops, lits, base, nt, ti + 1, p, pl, e, pi + 1, steps)
+            return try_ends_t(ops, lits, caps, k, pi, base, nt, ti + 1, p, pl, e, pi + 1, steps)
         elif kind == K_PATH:
             while e < pl and p.unsafe_offset(e)[] != 10:
                 e += 1
-            return try_ends_t(ops, lits, base, nt, ti + 1, p, pl, e, pi, steps)
+            return try_ends_t(ops, lits, caps, k, pi, base, nt, ti + 1, p, pl, e, pi, steps)
         elif kind == K_INT:
             while e < pl and is_digit(p.unsafe_offset(e)[]):
                 e += 1
             if e == pi:
                 return 0
-            return try_ends_t(ops, lits, base, nt, ti + 1, p, pl, e, pi + 1, steps)
+            return try_ends_t(ops, lits, caps, k, pi, base, nt, ti + 1, p, pl, e, pi + 1, steps)
         elif kind == K_FLOAT:
             var d1 = pi
             while d1 < pl and is_digit(p.unsafe_offset(d1)[]):
@@ -160,10 +197,10 @@ def match_t(
                 var d2 = d1 + 1
                 while d2 < pl and is_digit(p.unsafe_offset(d2)[]):
                     d2 += 1
-                var r = try_ends_t(ops, lits, base, nt, ti + 1, p, pl, d2, d1 + 2, steps)
+                var r = try_ends_t(ops, lits, caps, k, pi, base, nt, ti + 1, p, pl, d2, d1 + 2, steps)
                 if r != 0:
                     return r
-            return try_ends_t(ops, lits, base, nt, ti + 1, p, pl, d1, pi + 1, steps)
+            return try_ends_t(ops, lits, caps, k, pi, base, nt, ti + 1, p, pl, d1, pi + 1, steps)
         else:  # K_UUID
             var q = pi
             for k in range(5):
@@ -174,6 +211,8 @@ def match_t(
                     if q >= pl or not is_hex(p.unsafe_offset(q)[]):
                         return 0
                     q += 1
+            caps.unsafe_offset(2 * k)[] = Int32(pi)
+            caps.unsafe_offset(2 * k + 1)[] = Int32(q)
             pi = q
             ti += 1
             continue
@@ -186,6 +225,7 @@ def match_t(
 def first_match(t: RouteTable, p: FPtr, pl: Int) -> Int:
     var ops = rebind[IPtr](t.ops.unsafe_ptr())
     var lits = rebind[FPtr](t.lits.unsafe_ptr())
+    var caps = rebind[IPtr](t.caps.unsafe_ptr())
     for r in range(t.count):
         var base = Int(t.base[r])
         var nt = Int(t.ntok[r])
@@ -207,7 +247,7 @@ def first_match(t: RouteTable, p: FPtr, pl: Int) -> Int:
             ti = 1
             pi = ln
         var steps = 0
-        var m = match_t(ops, lits, base, nt, ti, p, pl, pi, steps)
+        var m = match_t(ops, lits, caps, base, nt, ti, p, pl, pi, steps)
         if m == 1:
             return r
         if m == -2:
