@@ -20,6 +20,7 @@ jobs:
       - uses: pypa/cibuildwheel@v4.3.5
         env:
           CIBW_SKIP: "pp* *-musllinux_* *-manylinux_i686 cp38-* *-win32"
+          CIBW_ENVIRONMENT_MACOS: MACOSX_DEPLOYMENT_TARGET=10.12  # Rust (rustc) の最低要件
           CIBW_BEFORE_ALL_LINUX: "curl -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal"
           CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
           CIBW_TEST_REQUIRES: "fastapi httpx"
