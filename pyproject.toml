@@ -8,7 +8,10 @@ version = "0.1.1"
 description = "Mojo/C accelerated route matching and IR tooling for FastAPI/Starlette (Starlette-compatible, verified by differential testing)"
 readme = "README.md"
 requires-python = ">=3.9"
-dependencies = ["fastapi"]
+dependencies = ["starlette"]
+
+[project.optional-dependencies]
+fastapi = ["fastapi"]
 license = { text = "MIT" }
 
 [project.urls]
@@ -17,4 +20,4 @@ Homepage = "https://github.com/aon-co-jp/mfastapi"
 [tool.setuptools]
 package-dir = { "" = "python" }
 packages = ["mfastapi"]
-py-modules = ["mfastapi_cext_selftest"]
+py-modules = ["mfastapi_cext_selftest", "mfastapi_equiv_selftest"]
