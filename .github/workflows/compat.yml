@@ -32,3 +32,10 @@ jobs:
         run: |
           cargo build --release --manifest-path rust/fastapim-core/Cargo.toml
           FASTAPIM_RS_LIB=$PWD/rust/fastapim-core/target/release/libfastapim_core.so PYTHONPATH=python python tests/test_rust_core.py
+      - name: Rust HTTP server (stage C) vs real FastAPI on uvicorn
+        run: |
+          pip install uvicorn
+          cargo build --release --manifest-path rust/fastapim-server/Cargo.toml
+          rust/fastapim-server/target/release/fastapim-server c 8831 &
+          sleep 3
+          PYTHONPATH=python python tests/mojo_endpoint/test_mojo_server_compat.py http://127.0.0.1:8831 c

@@ -13,7 +13,9 @@
 > - 以前のC版(`c/`)とMojo版(`mojo/`)は参照実装・比較用に残す(Mojoの段階B・Cサーバーは実験的)。Rust版が既定の方向。 / The C (`c/`) and Mojo (`mojo/`) versions stay as reference/comparison implementations; Rust is the default direction.
 > - **Rust拡張 `fastapim_rust`(PyO3)が `accelerate` の既定バックエンド**(`fastapim.backend()=="rust"`)。`pip install fastapim` で入り(setuptools-rust、ビルドできない環境では拡張なしで本家のまま動く)、Linux x86_64/ARM・Windows(64bit)・macOS(Intel/Apple silicon)のwheelで、バックエンドがrustであることと等価性テストをCIで確認する(Windows 32bitは対象外にした)。
 > - **互換性の継続的な保証**: `.github/workflows/compat.yml` が push・PR のたびに Python 3.9/3.12/3.14 で、StarletteおよびFastAPIとの等価性テスト、Rustコアの単体テスト、Pydantic・`parse_qsl` との差分ファジングを実行し、不一致があれば失敗する。保証の範囲はルーティング(パス照合・パラメータ・405・リダイレクト・WebSocket)と、整数/クエリ値の解析。範囲外は上記の注記のとおり。
-> - 未了 / Not yet: HTTPサーバー層のRust化、Windows 32bitのwheel。
+> - **HTTPサーバー層もRust(`rust/fastapim-server`、hyper+tokio)**: Starlette互換ルート表でのルーティング、FastAPIと同一の422エラー、OpenAPI 3.1と`/docs`、ハンドラはRustの関数(段階C)または埋め込みPython(段階B、`--features python`、呼び出しごとに正しくGILを取る)。`scripts/test-rust-server-wsl.sh` で本物のFastAPI(uvicorn)と比較し、**段階C 941件・段階B 394件で差異0**、OpenAPIも一致。負荷試験(16並列×2000件、`scripts/load-test-rust-wsl.sh`)は失敗0(段階C `/fib/30` 約2,300 req/s、段階B `/py/hello` 約2,400 req/s。Python処理はGILで直列化される)。`compat.yml` が段階Cのサーバーを毎回FastAPIと比較する。
+> - 既知の差(Rustサーバー): 要求の`#`以降はhyperが取り除く(実クライアントは送らない)。GETのみ(他は405)。パスパラメータは区間まるごとの`{name}`/`{name:type}`のみ抽出。JSONの書き出しは`serde_json`(RS-JSON方針の`rust_json::fast`への置換は未実施)。
+> - 未了 / Not yet: Windows 32bitのwheel、Rustサーバーのwheel/バイナリ配布(Release添付)、Mojo版サーバーの廃止判断。
 
 Mojo Support for Python's FastAPI. (FastAPI の Python + Rust + C++ 互換、Mojo 対応)
 

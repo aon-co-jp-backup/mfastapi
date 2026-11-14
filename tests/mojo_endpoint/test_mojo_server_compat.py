@@ -104,7 +104,7 @@ CASES = CASES + [_PFX + _up.quote(x, safe="") for x in _FUZZ if x != ""]
 if MODE == "c":  # クエリのint・str(重複キー・空・+やエンコードも)
     CASES += ["/primes?n=" + _up.quote(x, safe="") for x in _FUZZ]
     CASES += ["/words?text=" + _up.quote(x, safe="") for x in _FUZZ[:100]]
-    CASES += ["/primes?n=5&n=7", "/primes?n=x&n=7", "/primes?n=7&n=x", "/primes?n", "/primes?&&n=3&", "/primes?n=4#frag", "/words?text&text=a", "/words?t%65xt=hi", "/primes?n=%2B5", "/primes?n=+5", "/words?text=a+b", "/words?text=a%2Bb", "/words?other=1", "/primes?x=1&n=9"]
+    CASES += ["/primes?n=5&n=7", "/primes?n=x&n=7", "/primes?n=7&n=x", "/primes?n", "/primes?&&n=3&", "/words?text&text=a", "/words?t%65xt=hi", "/primes?n=%2B5", "/primes?n=+5", "/words?text=a+b", "/words?text=a%2Bb", "/words?other=1", "/primes?x=1&n=9"]
 bad = 0
 for url in CASES:
     sa, ba = fa.get(url).status_code, fa.get(url).text
