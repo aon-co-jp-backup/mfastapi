@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "fastapim"
-version = "0.1.1"
+version = "0.2.0"
 description = "Mojo/C accelerated route matching and IR tooling for FastAPI/Starlette (Starlette-compatible, verified by differential testing)"
 readme = "README.md"
 requires-python = ">=3.9"
@@ -21,3 +21,8 @@ Homepage = "https://github.com/aon-co-jp/FastAPIM"
 package-dir = { "" = "python" }
 packages = ["fastapim"]
 py-modules = ["fastapim_cext_selftest", "fastapim_equiv_selftest"]
+
+[[tool.cibuildwheel.overrides]]
+select = "*-win32"
+inherit.environment = "append"
+environment = { CARGO_BUILD_TARGET = "i686-pc-windows-msvc" }

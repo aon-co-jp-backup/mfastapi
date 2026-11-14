@@ -6,7 +6,10 @@ import sys
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-import fastapim_handlers as h
+try:
+    import fastapim_handlers as h
+except ImportError:  # Mojo build not available (CI): pure-Python equivalents
+    import pyref_handlers as h
 from fastapim import mojo_endpoint
 
 

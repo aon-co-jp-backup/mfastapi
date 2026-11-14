@@ -38,4 +38,4 @@ jobs:
           cargo build --release --manifest-path rust/fastapim-server/Cargo.toml
           rust/fastapim-server/target/release/fastapim-server c 8831 &
           sleep 3
-          PYTHONPATH=python python tests/mojo_endpoint/test_mojo_server_compat.py http://127.0.0.1:8831 c
+          PYTHONPATH=python:tests/mojo_endpoint python tests/mojo_endpoint/test_mojo_server_compat.py http://127.0.0.1:8831 c
