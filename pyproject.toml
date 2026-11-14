@@ -15,7 +15,7 @@ license = { text = "MIT" }
 fastapi = ["fastapi"]
 
 [project.urls]
-Homepage = "https://github.com/aon-co-jp/mfastapi"
+Homepage = "https://github.com/aon-co-jp/FastAPIM"
 
 [tool.setuptools]
 package-dir = { "" = "python" }

@@ -1,6 +1,6 @@
 # mfastapi 設計書(新規設計・初版 2026-11-14)
 
-Mojo Support for Python's FastAPI. 対象リポジトリ: https://github.com/aon-co-jp/mfastapi (現状は空)。
+Mojo Support for Python's FastAPI. 対象リポジトリ: https://github.com/aon-co-jp/FastAPIM (現状は空)。
 この文書は調査結果に基づく設計案で、実装・コミット・mfastapiリポジトリへの移動はまだ行っていない。
 
 ## 1. 調査結果(英語・日本語のWeb検索とGitHub検索)
