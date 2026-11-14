@@ -120,6 +120,67 @@ class _CtypesTable(object):
         return route_first_match(self._packed, path)
 
 
+def table_available():
+    """C版コンパイル済みルート表(mfastapi_table_*)を持つライブラリが読めるか(Mojo版ライブラリは持たない)。"""
+    try:
+        return hasattr(_get(), "mfastapi_table_new")
+    except OSError:
+        return False
+
+
+class CTable(object):
+    """C版のコンパイル済みルート表。テンプレートを1回だけ保持し、先頭リテラルで候補を落として照合する。
+    first_match_from(path, start) は start 以降で最初に一致した番号(なければ -1)。"""
+
+    def __init__(self, templates):
+        lib = _get()
+        if not hasattr(lib, "mfastapi_table_new"):
+            raise OSError("this library has no compiled route table (build c/mfastapi_cabi.c)")
+        lib.mfastapi_table_new.restype = ctypes.c_void_p
+        lib.mfastapi_table_new.argtypes = []
+        lib.mfastapi_table_free.restype = None
+        lib.mfastapi_table_free.argtypes = [ctypes.c_void_p]
+        lib.mfastapi_table_size.restype = ctypes.c_int32
+        lib.mfastapi_table_size.argtypes = [ctypes.c_void_p]
+        lib.mfastapi_table_add.restype = ctypes.c_int32
+        lib.mfastapi_table_add.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int64]
+        lib.mfastapi_table_first_match_from.restype = ctypes.c_int32
+        lib.mfastapi_table_first_match_from.argtypes = [ctypes.c_void_p, ctypes.c_char_p, ctypes.c_int64, ctypes.c_int32]
+        self._lib = lib
+        self._h = lib.mfastapi_table_new()
+        if not self._h:
+            raise MemoryError("mfastapi_table_new failed")
+        for t in templates:
+            b = _bytes(t)
+            r = lib.mfastapi_table_add(self._h, b, len(b))
+            if r != 0:
+                lib.mfastapi_table_free(self._h)
+                self._h = None
+                raise ValueError("template rejected (code %d): %r" % (r, t))
+
+    def size(self):
+        return int(self._lib.mfastapi_table_size(self._h))
+
+    def first_match_from(self, path, start=0):
+        p = _bytes(path)
+        r = self._lib.mfastapi_table_first_match_from(self._h, p, len(p), start)
+        if r == -3:
+            raise RuntimeError("path matching gave up (backtracking budget)")
+        return int(r)
+
+    def first_match(self, path):
+        return self.first_match_from(path, 0)
+
+    def __del__(self):
+        h = getattr(self, "_h", None)
+        if h:
+            try:
+                self._lib.mfastapi_table_free(h)
+            except Exception:
+                pass
+            self._h = None
+
+
 def make_table(templates):
     """ルート表を作る。Python 3でMojo拡張(mfastapi_native)があればそれ(最速)、無ければctypes版。
     どちらも .first_match(path) -> 最初に一致したテンプレートの番号(なければ -1) を持つ。"""

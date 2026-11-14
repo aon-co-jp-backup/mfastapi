@@ -166,4 +166,12 @@ mfastapi.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + mfa
 | 200 | 404(外れ) | 261,517 | 8,531 | 30.7倍 |
 | 1000 | 404(外れ) | 1,322,578 | 9,555 | 138倍 |
 
-**正直な注意**: ①先頭のルートに当たる場合は本家が正規表現1回で済むため、一定の追加費用(約1µs)の分だけ**遅くなる**(10ルートで0.8倍)。損益分岐はおよそ3番目のルート。ルートが均等に使われるなら10ルートでも平均で得になるが、特定の先頭ルートに偏る場合は損。②速度はStarletteの素の`Router`で測った。FastAPIでは等価性のみ確認し、速度は未測定(リクエスト処理全体が大きいので、割合としては小さくなる)。③FastAPIの内部ヘルパ`fastapi.routing._route_selected`(非公開)に依存する(FastAPI 0.143.3で確認、無ければ本家へ委ねる)。④Starlette 1.8.0 / FastAPI 0.143.3 のみで検証。⑤`Router(middleware=...)`を使っている場合は警告して加速しない。⑥WebSocketの経路は同じ手順だが専用のテストは未作成。
+**正直な注意**: ①先頭のルートに当たる場合は本家が正規表現1回で済むため、一定の追加費用(約1µs)の分だけ**遅くなる**(10ルートで0.8倍)。損益分岐はおよそ3番目のルート。ルートが均等に使われるなら10ルートでも平均で得になるが、特定の先頭ルートに偏る場合は損。②速度はStarletteの素の`Router`で測った(FastAPIの実測は下の節)。③FastAPIの内部ヘルパ`fastapi.routing._route_selected`(非公開)に依存する(FastAPI 0.143.3で確認、無ければ本家へ委ねる)。④Starlette 1.8.0 / FastAPI 0.143.3 のみで検証。⑤`Router(middleware=...)`を使っている場合は警告して加速しない。⑥WebSocketは専用の等価性テストを追加した(下記)。
+
+### 未完了だった項目の仕上げ(2026-11-14)
+- **C版コンパイル済みルート表**(`c/mfastapi_cabi.c`の`mfastapi_table_*`、ctypesラッパー`mfastapi.native.CTable`): Mojo拡張が使えない環境(Windows等)でも`accelerate`が動くよう、`mfastapi_native`が無ければ自動でこれに切り替える。テンプレートを1回だけ保持し、**先頭リテラルの比較で候補を落としてから**Starlette互換の照合をする(Mojo版のようなtrieは持たず線形走査なので、ルート数が非常に多いときはMojo版より遅い。`match`(path_params取得)も未提供)。ライブラリの読み込みに失敗する例外はすべて本家へ委ねる。
+- **C版の差分検証**(`bench/diff_ctable.py`): `first_match`と`first_match_from`をStarletteの`compile_path`と突き合わせ、**16万件×(Linux gcc・Python 3.12/3.14)で不一致0**、**4万件×(Windows MSVC x64・Python 3.13)で不一致0**。
+- **等価性テスト**はC版でも合格: Linux(Python 3.12/3.14)・Windows(MSVC x64・Python 3.13)とも、Starlette・FastAPI 各315リクエストで不一致0。
+- **WebSocket**: 既存/未登録パス・パスパラメータ付き・余計な末尾など7パスで、Starlette・FastAPIともに`accelerate`の有無で接続結果が一致(Mojo版・C版の両方)。実際に接続できる経路が含まれていることも確認。
+- **FastAPIの速度**(`bench/bench_router_fastapi.py`、何もしない軽いルートN本、ASGI呼び出し全体、Python 3.12・WSL・C版): 1リクエストが約0.42〜0.5ms(FastAPIの依存解決・応答生成が支配的)なので、効果は**ルートが多く、かつ末尾に近いものに当たる場合に限られる**。1000ルート末尾で3.5倍(1.74ms→0.50ms)、200ルート末尾で1.5倍。それ以外(先頭・50ルート以下)は1.0倍前後で差なし。**404(外れ)は加速されない**(1000ルートで2.25ms→2.25ms): FastAPIは`include_router`等で全パス一致の候補が混じるため近道を使わず本家に委ねる設計のため。
+- 限界: Windowsで検証したのはC版(MSVC x64、Python 3.13)のみ。**ネイティブWindowsのMojo拡張・macOS・Android・iOSは、実行環境が無い/Mojoが未対応のため未検証**(macOSはMojo公式対応だがこのPCに実機なし)。

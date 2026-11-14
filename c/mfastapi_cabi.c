@@ -10,6 +10,8 @@
  * Return: 1 match, 0 no match, -1 unknown convertor type (Starlette asserts), -2 gave up (backtracking budget). */
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 #if defined(_WIN32)
 #define MFASTAPI_EXPORT __declspec(dllexport)
@@ -151,6 +153,82 @@ MFASTAPI_EXPORT int32_t mfastapi_route_first_match(const uint8_t *tpls, int64_t 
             idx++;
             start = i + 1;
         }
+    }
+    return -1;
+}
+
+/* ---- コンパイル済みルート表(C版) --------------------------------------------------------------
+ * テンプレートを1度だけ保持し、各テンプレートの「先頭リテラル」(最初の{param}より前)で候補を素早く落としてから照合する。
+ * (Mojo拡張のようなtrieは持たず、先頭リテラルの比較による線形走査。Mojoが動かないOS向けの移植用。)
+ * mfastapi_table_add: 0=成功 / -1=未知の型名。
+ * mfastapi_table_first_match_from: start以降で最初に一致した番号 / -1=なし / -3=バックトラック上限。 */
+typedef struct {
+    uint8_t *tpl; int64_t tl;
+    int64_t lead; /* 先頭リテラルの長さ */
+} mf_route;
+
+typedef struct {
+    mf_route *r; int32_t n, cap;
+} mf_table;
+
+MFASTAPI_EXPORT void *mfastapi_table_new(void) { return calloc(1, sizeof(mf_table)); }
+
+MFASTAPI_EXPORT void mfastapi_table_free(void *h) {
+    mf_table *t = (mf_table *)h;
+    if (!t) return;
+    for (int32_t i = 0; i < t->n; i++) free(t->r[i].tpl);
+    free(t->r);
+    free(t);
+}
+
+MFASTAPI_EXPORT int32_t mfastapi_table_size(void *h) { return h ? ((mf_table *)h)->n : 0; }
+
+MFASTAPI_EXPORT int32_t mfastapi_table_add(void *h, const uint8_t *tpl, int64_t tl) {
+    mf_table *t = (mf_table *)h;
+    ctx c;
+    int64_t i;
+    mf_route *r;
+    if (!t || tl < 0) return -2;
+    c.t = tpl; c.tl = tl; c.p = tpl; c.pl = 0; c.steps = 0;
+    /* 全体を走査して未知の型名を検出し、先頭リテラル長も求める */
+    int64_t lead = -1;
+    for (i = 0; i < tl; i++) {
+        if (tpl[i] == '{') {
+            int64_t nx = 0; int kind = 0;
+            int pr = parse_param(&c, i, &nx, &kind);
+            if (pr < 0) return -1;
+            if (pr > 0) { if (lead < 0) lead = i; i = nx - 1; }
+        }
+    }
+    if (lead < 0) lead = tl;
+    if (t->n == t->cap) {
+        int32_t nc = t->cap ? t->cap * 2 : 16;
+        mf_route *q = (mf_route *)realloc(t->r, (size_t)nc * sizeof(mf_route));
+        if (!q) return -2;
+        t->r = q; t->cap = nc;
+    }
+    r = &t->r[t->n];
+    r->tpl = (uint8_t *)malloc(tl > 0 ? (size_t)tl : 1);
+    if (!r->tpl) return -2;
+    if (tl > 0) memcpy(r->tpl, tpl, (size_t)tl);
+    r->tl = tl; r->lead = lead;
+    t->n++;
+    return 0;
+}
+
+MFASTAPI_EXPORT int32_t mfastapi_table_first_match_from(void *h, const uint8_t *path, int64_t pl, int32_t start) {
+    const mf_table *t = (const mf_table *)h;
+    if (!t || pl < 0) return -1;
+    if (start < 0) start = 0;
+    for (int32_t k = start; k < t->n; k++) {
+        const mf_route *r = &t->r[k];
+        ctx c;
+        int m;
+        if (r->lead > pl || (r->lead > 0 && memcmp(r->tpl, path, (size_t)r->lead) != 0)) continue;
+        c.t = r->tpl; c.tl = r->tl; c.p = path; c.pl = pl; c.steps = 0;
+        m = match_from(&c, r->lead, r->lead);
+        if (m == 1) return k;
+        if (m == -2) return -3;
     }
     return -1;
 }

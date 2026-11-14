@@ -10,7 +10,7 @@ from fastapi import APIRouter, FastAPI, Request
 from fastapi.testclient import TestClient
 from starlette.applications import Starlette
 from starlette.responses import JSONResponse, PlainTextResponse
-from starlette.routing import Mount, Route
+from starlette.routing import Mount, Route, WebSocketRoute
 
 import mfastapi
 from mfastapi import accelerate
@@ -148,6 +148,54 @@ def test_fastapi_actually_accelerated():
     assert st.plain is False
 
 
+def _ws_results(app, paths):
+    """各パスへWebSocket接続し、(受け取った文字列 or 拒否時の例外種別/コード)を集める。"""
+    from starlette.websockets import WebSocketDisconnect
+
+    c = TestClient(app)
+    out = {}
+    for p in paths:
+        try:
+            with c.websocket_connect(p) as ws:
+                out[p] = ("ok", ws.receive_text())
+        except WebSocketDisconnect as e:
+            out[p] = ("disconnect", e.code)
+        except Exception as e:  # 404など
+            out[p] = ("error", type(e).__name__)
+    return out
+
+
+def _with_ws(app):
+    from starlette.websockets import WebSocket
+
+    async def hello(ws: WebSocket):
+        await ws.accept()
+        await ws.send_text("hello " + repr(sorted(ws.path_params.items())))
+        await ws.close()
+
+    for i in range(10):  # MIN_ROUTES以上にして加速を有効にする
+        app.add_api_websocket_route("/wsdummy%d" % i, hello) if hasattr(app, "add_api_websocket_route") \
+            else app.router.routes.append(WebSocketRoute("/wsdummy%d" % i, hello))
+    if hasattr(app, "add_api_websocket_route"):
+        app.add_api_websocket_route("/ws/{room}", hello)
+    else:
+        app.router.routes.append(WebSocketRoute("/ws/{room}", hello))
+    return app
+
+
+WS_PATHS = ["/ws/lobby", "/ws/", "/ws", "/wsdummy3", "/nope", "/ws/a/b", "/wsdummy99"]
+
+
+def test_websocket_equivalence():
+    for builder in (build_starlette, build_fastapi):
+        base = _with_ws(builder())
+        fast = accelerate(_with_ws(builder()))
+        a, b = _ws_results(base, WS_PATHS), _ws_results(fast, WS_PATHS)
+        assert a == b, (builder.__name__, a, b)
+        assert a["/ws/lobby"][0] == "ok", a  # 実際に接続できていること(全部失敗の一致を防ぐ)
+        print("websocket %s: %d paths equal" % (builder.__name__, len(WS_PATHS)))
+
+
 def test_routes_added_after_accelerate():
     app = build_starlette()
     accelerate(app)
@@ -161,6 +209,7 @@ if __name__ == "__main__":
     test_equivalence()
     test_actually_accelerated()
     test_fastapi_actually_accelerated()
+    test_websocket_equivalence()
     test_routes_added_after_accelerate()
     print("OK")
     sys.exit(0)

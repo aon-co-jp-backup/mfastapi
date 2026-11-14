@@ -18,9 +18,21 @@ import warnings
 from typing import Any
 
 try:
-    import mfastapi_native as _ext
+    import mfastapi_native as _ext  # Mojo拡張(最速)
 except ImportError:  # pragma: no cover
     _ext = None
+
+if _ext is None:  # Mojoが動かないOS(Windows等)向け: C版のコンパイル済みルート表(ctypes)
+    try:
+        from mfastapi import native as _native
+
+        class _CExt(object):
+            RouteTable = _native.CTable
+
+        if _native.table_available():
+            _ext = _CExt
+    except Exception:  # pragma: no cover
+        _ext = None
 
 from starlette.routing import Match, Mount, Route, Router, WebSocketRoute
 
@@ -80,14 +92,21 @@ def _make_app(original_app, mode):
             # get_route_path と同じ結果(root_pathが空なら scope["path"] そのもの)
             path = scope["path"] if not scope.get("root_path") else get_route_path(scope)
             find = st.table.first_match_from
-            i = find(path, 0)
+            try:
+                i = find(path, 0)
+            except Exception:  # バックトラック上限・エンコード不能など: 何も絞り込まず本家に任せる
+                return await original_app(self, scope, receive, send)
             if i < 0 and mode == 1 and st.plain:
                 # 候補が1つも無い = 本家の探索ではどのルートも FULL/PARTIAL にならない。
                 # redirect_slashes の候補も無ければ、即404(default)。
                 if typ != "http" or not self.redirect_slashes or path == "/":
                     return await self.default(scope, receive, send)
                 alt = path.rstrip("/") if path.endswith("/") else path + "/"  # 本家の redirect_slashes と同じ変換
-                if find(alt, 0) < 0:
+                try:
+                    no_alt = find(alt, 0) < 0
+                except Exception:
+                    no_alt = False
+                if no_alt:
                     return await self.default(scope, receive, send)
             while i >= 0:
                 route = routes[i]
@@ -106,7 +125,10 @@ def _make_app(original_app, mode):
                         )
                         return await route.handle(scope, receive, send)
                     break  # mode 0: 本家へ委ねる
-                i = find(path, i + 1)
+                try:
+                    i = find(path, i + 1)
+                except Exception:
+                    break
         return await original_app(self, scope, receive, send)
 
     return app
