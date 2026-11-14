@@ -3,3 +3,6 @@ __pycache__/
 *.so
 __mojocache__/
 build/
+*.egg-info/
+dist/
+*.whl

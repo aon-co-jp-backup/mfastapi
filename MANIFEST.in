@@ -1,0 +1,3 @@
+include README.md
+include c/mfastapi_cabi.c
+include c/mfastapi_pyext.c

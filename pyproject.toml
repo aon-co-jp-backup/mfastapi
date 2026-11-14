@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mfastapi"
+version = "0.1.0"
+description = "Mojo/C accelerated route matching and IR tooling for FastAPI/Starlette (Starlette-compatible, verified by differential testing)"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = ["fastapi"]
+license = { text = "MIT" }
+
+[project.urls]
+Homepage = "https://github.com/aon-co-jp/mfastapi"
+
+[tool.setuptools]
+package-dir = { "" = "python" }
+packages = ["mfastapi"]
