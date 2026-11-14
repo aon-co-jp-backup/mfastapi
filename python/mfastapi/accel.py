@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import os
 import warnings
 from typing import Any
 
@@ -49,6 +50,21 @@ except ImportError:  # pragma: no cover
         return scope["path"]
 
 _FULL = Match.FULL
+
+
+def backend() -> str:
+    """いま使われる照合の実装: "mojo"(Mojo拡張) / "cext"(C拡張) / "ctypes"(共有ライブラリ) / "none"(拡張なし=本家のまま)。
+    環境変数 MFASTAPI_DISABLE=1 のときは "none"(accelerateは何もしない)。"""
+    if os.environ.get("MFASTAPI_DISABLE"):
+        return "none"
+    if _ext is None:
+        return "none"
+    name = getattr(_ext, "__name__", "")
+    if name == "mfastapi_native":
+        return "mojo"
+    if name == "mfastapi_cext":
+        return "cext"
+    return "ctypes"
 MIN_ROUTES = 8  # これ未満のルート数では、本家の逐次走査のほうが速い(実測)ので何もしない
 _WILDCARD = "{x:path}"
 
@@ -154,8 +170,10 @@ except ImportError:  # pragma: no cover
 
 def accelerate(target: Any) -> Any:
     """Starlette/FastAPI のアプリ(または Router)のルート探索を高速化する。戻り値は同じオブジェクト。"""
+    if os.environ.get("MFASTAPI_DISABLE"):
+        return target  # 運用上の安全弁: 環境変数で一括して無効化できる
     if _ext is None:
-        warnings.warn("mfastapi_native extension not available; routing is not accelerated", RuntimeWarning)
+        warnings.warn("no mfastapi extension available (Mojo/C); routing is not accelerated and works as before", RuntimeWarning)
         return target
     router = target if isinstance(target, Router) else getattr(target, "router", None)
     if not isinstance(router, Router):

@@ -186,3 +186,17 @@ mfastapi.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + mfa
 - **iOS・Android**(`.github/workflows/mobile.yml`、手動実行): cibuildwheelでiOSシミュレーター(`cp313-ios_arm64_iphonesimulator`)・Androidエミュレーター(`cp313-android_x86_64`)向けのホイールを作り、実際にシミュレーター/エミュレーター上で`python -m mfastapi_cext_selftest`(C拡張の依存なしセルフテスト)が合格した。**確認したのはC拡張の照合(iOS・Androidで`fastapi`が入らないためセルフテスト限定)であり、StarletteやFastAPIとの等価性テストは未実施。実機(実際のiPhone・Android端末)・arm64のAndroidエミュレーター・Python 3.13以外は未確認**。モバイルのホイールはReleaseには添付していない。
 - **ネイティブWindowsのMojo拡張**: Mojoが公式にWindowsネイティブ対応していない(WSL経由のみ)ため、引き続き未対応(C拡張/ctypes版を使う)。
 - **fastapi非依存化とモバイルでの等価性**(2026-11-14): `import mfastapi`と`accelerate`はStarletteだけで動くようにした(IR/OpenAPI関連は使う時に遅延importし、`fastapi`はオプション依存`mfastapi[fastapi]`)。等価性テストはインストールされるモジュール`mfastapi_equiv_selftest`(`python -m mfastapi_equiv_selftest`)にし、fastapiが無ければStarletteのみ検証する。これにより**iOSシミュレーター・Androidエミュレーター上でも、Starletteの等価性315件+WebSocket 7パスが不一致0**で合格した(`mobile.yml`、`accelerate`がC拡張経由で動作)。FastAPI側の等価性はモバイルでは未実施(pydantic-coreのモバイル用ホイールが無いため)。
+
+## LinuxのWebサーバーで使う(Mojoあり / C拡張 / 拡張なし)(2026-11-14)
+**結論: Linuxなら動く。Mojoが無くても、mfastapiだけでも動く。** 実際のWebサーバー(uvicorn、FastAPI・ルート200本)で3つのモードを起動し、同じリクエストを送って確認した(`scripts/test-server-wsl.sh`、`examples/server_app.py`、WSL Ubuntu・Python 3.12):
+
+| モード | 使われる実装 | 準備 |
+|---|---|---|
+| ① Mojo | Mojo拡張(`mfastapi_native`) | MojoでビルドしたLinux用の`.so`をPYTHONPATHに置く(Linux x86_64/ARM64はMojo公式対応) |
+| ② C拡張 | `mfastapi_cext` | `pip install mfastapi`(ホイールにC拡張が入る。Mojo不要) |
+| ③ 拡張なし | 本家のルート探索のまま | `PYTHONPATH`に`python/`だけ。コンパイラもMojoも不要(`accelerate`は警告を出して何もしない) |
+
+- `mfastapi.backend()`で、いま使われている実装(`"mojo"` / `"cext"` / `"ctypes"` / `"none"`)を確認できる。環境変数`MFASTAPI_DISABLE=1`で、再デプロイなしに`accelerate`を無効化できる(運用上の安全弁)。
+- **結果**: 3モードとも起動でき、8本のリクエスト(各ルート・パスパラメータ・`{p:path}`・404・末尾スラッシュ・`/__backend`)の**ステータスと本文がモード間で完全に同一**だった。
+- **速度(uvicornの実HTTP、1リクエストあたり)**: 200ルートで、末尾ルートは拡張なし1,345µs → Mojo 1,088µs・C拡張 1,086µs(約1.24倍)。先頭ルートと404は約1,030〜1,150µsで差なし。HTTPサーバーとFastAPIの処理が大半で、ルート探索の短縮は目立ちにくい。**数十〜数千ルートで、末尾寄りのルートが多いアプリほど効く**(前節のベンチ参照)。MojoとC拡張に実用上の差は無い。
+- 注意: 測定は1台のWSL(ループバック接続)のみ。マルチワーカー・本番のnginx/リバースプロキシ配下・負荷下での測定は未実施。
