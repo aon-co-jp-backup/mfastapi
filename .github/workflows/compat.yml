@@ -1,0 +1,34 @@
+name: compat
+
+# FastAPI / Starlette との互換性を、push・PRのたびに差分テストで確認する(不一致があれば失敗)。
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.12", "3.14"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Rust unit tests
+        run: cargo test --release --manifest-path rust/fastapim-core/Cargo.toml
+      - name: Build and install (Rust extension is the default backend)
+        run: pip install ".[fastapi]" httpx pydantic
+      - name: Backend is Rust
+        run: python -c "import fastapim; assert fastapim.backend()=='rust', fastapim.backend()"
+      - name: Router equivalence vs Starlette and FastAPI
+        run: python -m fastapim_equiv_selftest
+      - name: Rust security core vs Pydantic / parse_qsl (differential fuzz)
+        run: |
+          cargo build --release --manifest-path rust/fastapim-core/Cargo.toml
+          FASTAPIM_RS_LIB=$PWD/rust/fastapim-core/target/release/libfastapim_core.so PYTHONPATH=python python tests/test_rust_core.py
