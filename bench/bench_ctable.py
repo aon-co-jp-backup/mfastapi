@@ -3,7 +3,13 @@
 使い方: MFASTAPI_LIB=<lib> PYTHONPATH=<repo>/python python bench/bench_ctable.py"""
 import time
 
-from mfastapi import native
+try:
+    import mfastapi_cext as _cx
+
+    class native:
+        CTable = _cx.RouteTable
+except ImportError:
+    from mfastapi import native
 from starlette.routing import compile_path
 
 KINDS = ["/api/v1/res{i}/{{id:int}}", "/api/v1/res{i}/{{name}}/detail", "/static{i}/{{p:path}}",

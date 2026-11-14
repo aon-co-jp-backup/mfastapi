@@ -22,7 +22,13 @@ try:
 except ImportError:  # pragma: no cover
     _ext = None
 
-if _ext is None:  # Mojoが動かないOS(Windows等)向け: C版のコンパイル済みルート表(ctypes)
+if _ext is None:  # Mojoが無い環境: C版ルート表のCPython拡張(呼び出し費用が小さい)
+    try:
+        import mfastapi_cext as _ext
+    except ImportError:
+        _ext = None
+
+if _ext is None:  # 拡張も無い環境(Windows等): C版のコンパイル済みルート表(ctypes)
     try:
         from mfastapi import native as _native
 

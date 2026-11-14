@@ -24,6 +24,13 @@ if (-not (Test-Path "$venv\Scripts\python.exe")) {
     & $py["x64"] -m venv $venv
     & "$venv\Scripts\python.exe" -m pip install --quiet --disable-pip-version-check starlette fastapi httpx 2>$null
 }
+# CPython C拡張(mfastapi_cext)もビルドして、ctypes版(下)とcext版(さらに下)の両方を試す。
+$cext = Join-Path $out "cext"; New-Item -ItemType Directory -Force $cext | Out-Null
+& "$venv\Scripts\python.exe" -m pip install --quiet --disable-pip-version-check setuptools 2>$null
+Push-Location $root
+& "$venv\Scripts\python.exe" setup_cext.py -q build_ext --build-lib $cext --build-temp (Join-Path $out "cext-tmp") 2>$null
+$cextExit = $LASTEXITCODE
+Pop-Location
 $env:MFASTAPI_LIB = Join-Path $out "x64\mfastapi.dll"
 $env:PYTHONPATH = Join-Path $root "python"
 $env:PYTHONIOENCODING = "utf-8"
@@ -33,3 +40,10 @@ $ErrorActionPreference = "Continue"  # Pythonの警告(stderr)でStopしない�
 if ($LASTEXITCODE -ne 0) { throw "ctable differential failed" }
 & "$venv\Scripts\python.exe" (Join-Path $root "tests\accel\test_router_equiv.py")
 if ($LASTEXITCODE -ne 0) { throw "router equivalence (C table) failed" }
+if ($cextExit -ne 0) { throw "cext build failed" }
+$env:PYTHONPATH = "$cext;$(Join-Path $root 'python')"
+& "$venv\Scripts\python.exe" (Join-Path $root "bench\diff_cext.py") 5000
+if ($LASTEXITCODE -ne 0) { throw "cext differential failed" }
+& "$venv\Scripts\python.exe" (Join-Path $root "tests\accel\test_router_equiv.py")
+if ($LASTEXITCODE -ne 0) { throw "router equivalence (cext) failed" }
+& "$venv\Scripts\python.exe" (Join-Path $root "bench\bench_ctable.py")
