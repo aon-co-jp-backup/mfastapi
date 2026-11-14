@@ -1,7 +1,7 @@
 """Mojo handlers callable from Python/FastAPI (stage A+): compute-heavy endpoint bodies written in Mojo.
 
-Build: mojo build mojo/mfastapi_handlers.mojo --emit shared-lib -o build/mfastapi_handlers.so
-Use:   from mfastapi import mojo_endpoint; app.add_api_route("/fib/{n}", mojo_endpoint(h.fib, {"n": int}, int))
+Build: mojo build mojo/fastapim_handlers.mojo --emit shared-lib -o build/fastapim_handlers.so
+Use:   from fastapim import mojo_endpoint; app.add_api_route("/fib/{n}", mojo_endpoint(h.fib, {"n": int}, int))
 """
 from std.python import Python, PythonObject
 from std.python.bindings import PythonModuleBuilder
@@ -9,16 +9,16 @@ from std.os import abort
 
 
 @export
-def PyInit_mfastapi_handlers() abi("C") -> PythonObject:
+def PyInit_fastapim_handlers() abi("C") -> PythonObject:
     try:
-        var m = PythonModuleBuilder("mfastapi_handlers")
+        var m = PythonModuleBuilder("fastapim_handlers")
         m.def_function[fib]("fib", docstring="fib(n): naive recursive Fibonacci (CPU-bound demo)")
         m.def_function[count_primes]("count_primes", docstring="count_primes(n): number of primes <= n (sieve)")
         m.def_function[word_count]("word_count", docstring="word_count(text): number of whitespace-separated words")
         m.def_function[mean]("mean", docstring="mean(list_of_numbers) -> float")
         return m.finalize()
     except e:
-        abort(String("error creating mfastapi_handlers:", e))
+        abort(String("error creating fastapim_handlers:", e))
 
 
 def fib_rec(n: Int) -> Int:

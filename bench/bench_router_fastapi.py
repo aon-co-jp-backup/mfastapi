@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""FastAPI アプリ(何もしない軽いルートN本)のASGI呼び出し全体の速さ: 本家 vs mfastapi.accelerate。
+"""FastAPI アプリ(何もしない軽いルートN本)のASGI呼び出し全体の速さ: 本家 vs fastapim.accelerate。
 ルート探索だけでなく、FastAPIの依存解決・応答生成を含む総所要時間なので、探索の改善は相対的に薄まる点に注意。
 使い方: PYTHONPATH=<native>:<repo>/python python bench/bench_router_fastapi.py"""
 import asyncio
@@ -8,7 +8,7 @@ import time
 
 from fastapi import FastAPI
 
-from mfastapi import accelerate
+from fastapim import accelerate
 
 
 def build(n):

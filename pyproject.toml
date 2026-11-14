@@ -3,7 +3,7 @@ requires = ["setuptools>=64"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "mfastapi"
+name = "fastapim"
 version = "0.1.1"
 description = "Mojo/C accelerated route matching and IR tooling for FastAPI/Starlette (Starlette-compatible, verified by differential testing)"
 readme = "README.md"
@@ -19,5 +19,5 @@ Homepage = "https://github.com/aon-co-jp/FastAPIM"
 
 [tool.setuptools]
 package-dir = { "" = "python" }
-packages = ["mfastapi"]
-py-modules = ["mfastapi_cext_selftest", "mfastapi_equiv_selftest"]
+packages = ["fastapim"]
+py-modules = ["fastapim_cext_selftest", "fastapim_equiv_selftest"]

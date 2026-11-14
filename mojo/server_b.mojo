@@ -18,7 +18,7 @@ from std.os import getenv
 from flare.prelude import *
 from flare.net import SocketAddr
 
-from mfastapi_web import (
+from fastapim_web import (
     Errors,
     ParamSpec,
     RouteSpec,
@@ -152,7 +152,7 @@ def main() raises:
     r.get("/openapi.json", openapi)
     r.get("/docs", docs)
     var srv = HttpServer.bind(SocketAddr.localhost(UInt16(port)))
-    print("mfastapi stage B (Mojo HTTP + Python handlers) on 127.0.0.1:" + String(port))
+    print("fastapim stage B (Mojo HTTP + Python handlers) on 127.0.0.1:" + String(port))
     if workers > 1:
         # the main thread holds the GIL after Python init; release it so worker threads can take it via PyGILState_Ensure
         var lib = OwnedDLHandle(getenv("MOJO_PYTHON_LIBRARY"))

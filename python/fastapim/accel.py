@@ -10,7 +10,7 @@
 テンプレートを持たないルート(Host、独自のBaseRoute、FastAPIの include_router 由来など)は「すべてのパスに一致する候補」
 として表に入れ、本家の matches で最終判定する(絞り込みが過剰でも結果は変わらない)。
 
-使い方: mfastapi.accelerate(app)   # Starlette / FastAPI のアプリ、または Router を渡す。要 Python 3 + mfastapi_native
+使い方: fastapim.accelerate(app)   # Starlette / FastAPI のアプリ、または Router を渡す。要 Python 3 + fastapim_native
 """
 from __future__ import annotations
 
@@ -19,19 +19,19 @@ import warnings
 from typing import Any
 
 try:
-    import mfastapi_native as _ext  # Mojo拡張(最速)
+    import fastapim_native as _ext  # Mojo拡張(最速)
 except ImportError:  # pragma: no cover
     _ext = None
 
 if _ext is None:  # Mojoが無い環境: C版ルート表のCPython拡張(呼び出し費用が小さい)
     try:
-        import mfastapi_cext as _ext
+        import fastapim_cext as _ext
     except ImportError:
         _ext = None
 
 if _ext is None:  # 拡張も無い環境(Windows等): C版のコンパイル済みルート表(ctypes)
     try:
-        from mfastapi import native as _native
+        from fastapim import native as _native
 
         class _CExt(object):
             RouteTable = _native.CTable
@@ -54,15 +54,15 @@ _FULL = Match.FULL
 
 def backend() -> str:
     """いま使われる照合の実装: "mojo"(Mojo拡張) / "cext"(C拡張) / "ctypes"(共有ライブラリ) / "none"(拡張なし=本家のまま)。
-    環境変数 MFASTAPI_DISABLE=1 のときは "none"(accelerateは何もしない)。"""
-    if os.environ.get("MFASTAPI_DISABLE"):
+    環境変数 FASTAPIM_DISABLE=1 のときは "none"(accelerateは何もしない)。"""
+    if os.environ.get("FASTAPIM_DISABLE"):
         return "none"
     if _ext is None:
         return "none"
     name = getattr(_ext, "__name__", "")
-    if name == "mfastapi_native":
+    if name == "fastapim_native":
         return "mojo"
-    if name == "mfastapi_cext":
+    if name == "fastapim_cext":
         return "cext"
     return "ctypes"
 MIN_ROUTES = 8  # これ未満のルート数では、本家の逐次走査のほうが速い(実測)ので何もしない
@@ -111,9 +111,9 @@ def _make_app(original_app, mode):
         n = len(routes)
         if n >= MIN_ROUTES and (typ == "http" or typ == "websocket"):
             d = self.__dict__
-            st = d.get("_mfastapi_state")
+            st = d.get("_fastapim_state")
             if st is None or st.n != n or st.last is not routes[-1]:
-                st = d["_mfastapi_state"] = _State(routes)
+                st = d["_fastapim_state"] = _State(routes)
             if "router" not in scope:
                 scope["router"] = self
             # get_route_path と同じ結果(root_pathが空なら scope["path"] そのもの)
@@ -170,16 +170,16 @@ except ImportError:  # pragma: no cover
 
 def accelerate(target: Any) -> Any:
     """Starlette/FastAPI のアプリ(または Router)のルート探索を高速化する。戻り値は同じオブジェクト。"""
-    if os.environ.get("MFASTAPI_DISABLE"):
+    if os.environ.get("FASTAPIM_DISABLE"):
         return target  # 運用上の安全弁: 環境変数で一括して無効化できる
     if _ext is None:
-        warnings.warn("no mfastapi extension available (Mojo/C); routing is not accelerated and works as before", RuntimeWarning)
+        warnings.warn("no fastapim extension available (Mojo/C); routing is not accelerated and works as before", RuntimeWarning)
         return target
     router = target if isinstance(target, Router) else getattr(target, "router", None)
     if not isinstance(router, Router):
         raise TypeError("accelerate() expects a Starlette/FastAPI app or a Router")
     cls = type(router)
-    if getattr(cls, "_mfastapi_accelerated", False):
+    if getattr(cls, "_fastapim_accelerated", False):
         return target
     original = cls.app
     if _APIRouter is not None and isinstance(router, _APIRouter) and _route_selected is not None:
@@ -188,7 +188,7 @@ def accelerate(target: Any) -> Any:
         mode = 1
     else:
         mode = 0
-    accel_cls = type(cls.__name__, (cls,), {"app": _make_app(original, mode), "_mfastapi_accelerated": True})
+    accel_cls = type(cls.__name__, (cls,), {"app": _make_app(original, mode), "_fastapim_accelerated": True})
     router.__class__ = accel_cls
     # Router は __init__ で middleware_stack = self.app (束縛メソッド) を保持する。作り直す。
     ms = router.__dict__.get("middleware_stack")

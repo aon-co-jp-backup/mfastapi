@@ -3,14 +3,14 @@ from std.python import Python, PythonObject
 from std.python.bindings import PythonModuleBuilder
 from std.os import abort
 
-from mfastapi_match import Ctx, FPtr, K_FLOAT, K_INT, K_UUID, match_from
-from mfastapi_table import RouteTable, first_match, first_match_from, first_match_linear
+from fastapim_match import Ctx, FPtr, K_FLOAT, K_INT, K_UUID, match_from
+from fastapim_table import RouteTable, first_match, first_match_from, first_match_linear
 
 
 @export
-def PyInit_mfastapi_native() abi("C") -> PythonObject:
+def PyInit_fastapim_native() abi("C") -> PythonObject:
     try:
-        var m = PythonModuleBuilder("mfastapi_native")
+        var m = PythonModuleBuilder("fastapim_native")
         m.def_function[add]("add", docstring="a + b (smoke test)")
         m.def_function[path_matches]("path_matches", docstring="path_matches(template, path) -> bool")
         _ = (
@@ -24,7 +24,7 @@ def PyInit_mfastapi_native() abi("C") -> PythonObject:
         )
         return m.finalize()
     except e:
-        abort(String("error creating mfastapi_native:", e))
+        abort(String("error creating fastapim_native:", e))
 
 
 def utf8_of(o: PythonObject) raises -> StringSpan[ImmutAnyOrigin]:

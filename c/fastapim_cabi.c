@@ -1,8 +1,8 @@
-/* mfastapi C ABI portable reference implementation (C99).
- * Same functions and behavior as mojo/mfastapi_cabi.mojo. For OSes where Mojo does not run (native Windows, Android, iOS, BSD).
+/* fastapim C ABI portable reference implementation (C99).
+ * Same functions and behavior as mojo/fastapim_cabi.mojo. For OSes where Mojo does not run (native Windows, Android, iOS, BSD).
  * Depends on the C standard library only.
  *
- * mfastapi_path_matches follows Starlette's compile_path()/re.match semantics:
+ * fastapim_path_matches follows Starlette's compile_path()/re.match semantics:
  *   {name} {name:str} -> [^/]+     {name:path} -> .*     {name:int} -> [0-9]+
  *   {name:float} -> [0-9]+(\.[0-9]+)?      {name:uuid} -> 8-4-4-4-12 hex with optional '-'
  *   a '{' that is not a valid {name[:type]} is a literal; params may sit inside a segment; backtracking like `re`.
@@ -14,14 +14,14 @@
 #include <string.h>
 
 #if defined(_WIN32)
-#define MFASTAPI_EXPORT __declspec(dllexport)
+#define FASTAPIM_EXPORT __declspec(dllexport)
 #else
-#define MFASTAPI_EXPORT __attribute__((visibility("default")))
+#define FASTAPIM_EXPORT __attribute__((visibility("default")))
 #endif
 
-MFASTAPI_EXPORT int32_t mfastapi_abi_version(void) { return 1; }
+FASTAPIM_EXPORT int32_t fastapim_abi_version(void) { return 1; }
 
-MFASTAPI_EXPORT int64_t mfastapi_add(int64_t a, int64_t b) { return (int64_t)((uint64_t)a + (uint64_t)b); }
+FASTAPIM_EXPORT int64_t fastapim_add(int64_t a, int64_t b) { return (int64_t)((uint64_t)a + (uint64_t)b); }
 
 enum { K_STR, K_PATH, K_INT, K_FLOAT, K_UUID };
 #define BUDGET 200000
@@ -129,7 +129,7 @@ static int match_from(ctx *c, int64_t ti, int64_t pi) {
     return (pi == c->pl || (pi == c->pl - 1 && c->p[pi] == '\n')) ? 1 : 0;
 }
 
-MFASTAPI_EXPORT int32_t mfastapi_path_matches(const uint8_t *tpl, int64_t tpl_len, const uint8_t *path, int64_t path_len) {
+FASTAPIM_EXPORT int32_t fastapim_path_matches(const uint8_t *tpl, int64_t tpl_len, const uint8_t *path, int64_t path_len) {
     ctx c;
     if (tpl_len < 0 || path_len < 0) return 0;
     c.t = tpl; c.tl = tpl_len; c.p = path; c.pl = path_len; c.steps = 0;
@@ -138,7 +138,7 @@ MFASTAPI_EXPORT int32_t mfastapi_path_matches(const uint8_t *tpl, int64_t tpl_le
 
 /* ルート表をまとめて照合する: tpls は '\n' 区切りのテンプレート列。最初に一致した行番号(0始まり)を返す。
  * -1=一致なし, -2=不正な型名を含むテンプレートがあった, -3=バックトラック上限で断念。 */
-MFASTAPI_EXPORT int32_t mfastapi_route_first_match(const uint8_t *tpls, int64_t tpls_len, const uint8_t *path, int64_t path_len) {
+FASTAPIM_EXPORT int32_t fastapim_route_first_match(const uint8_t *tpls, int64_t tpls_len, const uint8_t *path, int64_t path_len) {
     int64_t start = 0;
     int32_t idx = 0;
     if (tpls_len < 0 || path_len < 0) return -1;
@@ -160,8 +160,8 @@ MFASTAPI_EXPORT int32_t mfastapi_route_first_match(const uint8_t *tpls, int64_t 
 /* ---- コンパイル済みルート表(C版) --------------------------------------------------------------
  * テンプレートを1度だけ保持し、各テンプレートの「先頭リテラル」(最初の{param}より前)で候補を素早く落としてから照合する。
  * (Mojo拡張のようなtrieは持たず、先頭リテラルの比較による線形走査。Mojoが動かないOS向けの移植用。)
- * mfastapi_table_add: 0=成功 / -1=未知の型名。
- * mfastapi_table_first_match_from: start以降で最初に一致した番号 / -1=なし / -3=バックトラック上限。 */
+ * fastapim_table_add: 0=成功 / -1=未知の型名。
+ * fastapim_table_first_match_from: start以降で最初に一致した番号 / -1=なし / -3=バックトラック上限。 */
 typedef struct {
     uint8_t *tpl; int64_t tl;
     int64_t lead; /* 先頭リテラルの長さ */
@@ -187,13 +187,13 @@ static int32_t t_new_node(mf_table *t, uint8_t b) {
     return t->nn++;
 }
 
-MFASTAPI_EXPORT void *mfastapi_table_new(void) {
+FASTAPIM_EXPORT void *fastapim_table_new(void) {
     mf_table *t = (mf_table *)calloc(1, sizeof(mf_table));
     if (t && t_new_node(t, 0) < 0) { free(t); return NULL; }
     return t;
 }
 
-MFASTAPI_EXPORT void mfastapi_table_free(void *h) {
+FASTAPIM_EXPORT void fastapim_table_free(void *h) {
     mf_table *t = (mf_table *)h;
     if (!t) return;
     for (int32_t i = 0; i < t->n; i++) free(t->r[i].tpl);
@@ -202,9 +202,9 @@ MFASTAPI_EXPORT void mfastapi_table_free(void *h) {
     free(t);
 }
 
-MFASTAPI_EXPORT int32_t mfastapi_table_size(void *h) { return h ? ((mf_table *)h)->n : 0; }
+FASTAPIM_EXPORT int32_t fastapim_table_size(void *h) { return h ? ((mf_table *)h)->n : 0; }
 
-MFASTAPI_EXPORT int32_t mfastapi_table_add(void *h, const uint8_t *tpl, int64_t tl) {
+FASTAPIM_EXPORT int32_t fastapim_table_add(void *h, const uint8_t *tpl, int64_t tl) {
     mf_table *t = (mf_table *)h;
     ctx c;
     int64_t i;
@@ -254,7 +254,7 @@ MFASTAPI_EXPORT int32_t mfastapi_table_add(void *h, const uint8_t *tpl, int64_t 
     return 0;
 }
 
-MFASTAPI_EXPORT int32_t mfastapi_table_first_match_from(void *h, const uint8_t *path, int64_t pl, int32_t start) {
+FASTAPIM_EXPORT int32_t fastapim_table_first_match_from(void *h, const uint8_t *path, int64_t pl, int32_t start) {
     const mf_table *t = (const mf_table *)h;
     if (!t || pl < 0) return -1;
     if (start < 0) start = 0;

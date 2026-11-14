@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# fastapi なし(Starletteのみ)でも import mfastapi / accelerate / 等価性テストが動くことを確認する(要 test-cext-wsl.sh でcextをビルド済み)。
+# fastapi なし(Starletteのみ)でも import fastapim / accelerate / 等価性テストが動くことを確認する(要 test-cext-wsl.sh でcextをビルド済み)。
 set -euo pipefail
 export PATH="$HOME/.local/bin:/usr/bin:/bin"
 export PYTHONPATH="$HOME/mfastapi-cext/py3.12:/mnt/f/mfastapi/python"

@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """accelerate()した Starlette / FastAPI アプリが、しない場合と完全に同じ応答を返すことを確かめる。
-実行: python -m mfastapi_equiv_selftest (要 starlette httpx。fastapi があればFastAPIも検証する)
+実行: python -m fastapim_equiv_selftest (要 starlette httpx。fastapi があればFastAPIも検証する)
 開発時: PYTHONPATH=<拡張のdir>:<repo>/python python tests/accel/test_router_equiv.py (薄いラッパー)
 iOS/Androidのテストコマンドは `python -m` 形式しか使えないため、インストールされるモジュールとして置いている。"""
 import itertools
@@ -19,8 +19,8 @@ try:  # fastapi が無い環境(iOS/Androidなど)ではStarletteだけ検証す
 except ImportError:
     HAVE_FASTAPI = False
 
-import mfastapi
-from mfastapi import accelerate
+import fastapim
+from fastapim import accelerate
 
 
 def make_routes_for_starlette():
@@ -141,16 +141,16 @@ def test_actually_accelerated():
     app = build_starlette()
     accelerate(app)
     TestClient(app).get("/items/1")
-    st = app.router.__dict__.get("_mfastapi_state")
+    st = app.router.__dict__.get("_fastapim_state")
     assert st is not None and st.table.size() == len(app.router.routes)
-    assert getattr(type(app.router), "_mfastapi_accelerated", False)
+    assert getattr(type(app.router), "_fastapim_accelerated", False)
 
 
 def test_fastapi_actually_accelerated():
     app = build_fastapi()
     accelerate(app)
     TestClient(app).get("/items/1")
-    st = app.router.__dict__.get("_mfastapi_state")
+    st = app.router.__dict__.get("_fastapim_state")
     assert st is not None and st.table.size() == len(app.router.routes), "FastAPI router was not accelerated"
     # 新しいFastAPIではinclude_routerで作られた内包ルーターがワイルドカード候補になり、近道(404即時)は使わない。
     # 古いFastAPI(include_routerがルートを展開する版)ではplainになりうるので、ここでは値を固定せず等価性(上)に任せる。

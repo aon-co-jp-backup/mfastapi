@@ -6,9 +6,9 @@ export PATH="$HOME/.local/bin:/usr/bin:/bin"
 bash /mnt/f/mfastapi/scripts/build-ext-wsl.sh
 B="$HOME/mfastapi-mojo/build"
 . "$HOME/mfastapi-mojo/.venv/bin/activate"
-mojo build -I /mnt/f/mfastapi/mojo /mnt/f/mfastapi/mojo/mfastapi_cabi.mojo --emit shared-lib -o "$B/libmfastapi.so"
+mojo build -I /mnt/f/mfastapi/mojo /mnt/f/mfastapi/mojo/fastapim_cabi.mojo --emit shared-lib -o "$B/libfastapim.so"
 deactivate
-export PYTHONPATH="$B" MFASTAPI_LIB="$B/libmfastapi.so"
+export PYTHONPATH="$B" FASTAPIM_LIB="$B/libfastapim.so"
 for v in 3.12 3.14; do
   echo "[differential, Python $v]"
   uv run --no-project --python "$v" --with starlette python /mnt/f/mfastapi/bench/diff_table.py 20000

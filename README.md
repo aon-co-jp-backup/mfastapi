@@ -1,16 +1,20 @@
-# mfastapi
+# FastAPIM
 
-> **リポジトリ名の変更(2026-11-14)**: GitHubのリポジトリ名を `mfastapi` から **`FastAPIM`** に変更した(旧URLは自動転送される)。Pythonのパッケージ名・import名は引き続き `mfastapi`(`pip install mfastapi` / `import mfastapi`)。Windowsでは非公式の橋渡し [MojoW](https://github.com/aon-co-jp/MojoW)(WSL上の本物のMojoを使う)でビルドできる。
+> **名前の変更(2026-11-14、互換性を壊す変更)**: GitHubのリポジトリ名を `mfastapi` から **`FastAPIM`** に、Pythonのパッケージ名・import名を `mfastapi` から **`fastapim`** に変更した。利用者は `pip install fastapim` / `import fastapim` に切り替える。拡張モジュールは `fastapim_cext` / `fastapim_native` / `fastapim_handlers`、環境変数は `FASTAPIM_DISABLE`、C ABIの関数は `fastapim_*` に変わった。旧GitHub URLは自動転送される。旧名 `mfastapi` のパッケージはPyPIへ公開していない。Windowsでは非公式の橋渡し [MojoW](https://github.com/aon-co-jp/MojoW)(WSL上の本物のMojoを使う)でビルドできる。
+>
+> **Rename (2026-11-14, breaking change)**: the GitHub repository was renamed from `mfastapi` to **`FastAPIM`**, and the Python package / import name from `mfastapi` to **`fastapim`**. Switch to `pip install fastapim` / `import fastapim`. Extension modules are now `fastapim_cext` / `fastapim_native` / `fastapim_handlers`, the kill-switch environment variable is `FASTAPIM_DISABLE`, and the C ABI functions are `fastapim_*`. The old GitHub URL redirects. A package named `mfastapi` was never published to PyPI. On Windows, build with the unofficial [MojoW](https://github.com/aon-co-jp/MojoW) bridge (runs the real Mojo in WSL).
+>
+> **互換性 / Compatibility**: FastAPIとFastAPIMの互換性は、実際のFastAPI(uvicorn)との差分テストで継続的に検証する(下記「互換性の確認方法と範囲」)。段階B・Cは検証済みの範囲(パス/クエリのint・str、422、OpenAPI)で応答が一致する。未対応の機能(Depends・Pydanticモデル本文・ミドルウェア等)は互換外として明記する。 / FastAPI-vs-FastAPIM compatibility is verified by differential tests against real FastAPI on uvicorn (see "互換性の確認方法と範囲" below). Stages B/C match FastAPI on the verified scope (int/str path and query params, 422 errors, OpenAPI); unsupported features (Depends, Pydantic body models, middleware) are explicitly out of scope.
 
 Mojo Support for Python's FastAPI. (FastAPI の Python + Rust + C++ 互換、Mojo 対応)
 
 設計: [DESIGN.md](DESIGN.md)。本家: https://fastapi.tiangolo.com/ ・ https://github.com/fastapi/fastapi
 
 ## 現状(2026-11-14、段階Aの最小実装)
-- `mfastapi.collect_ir(app)`: FastAPIアプリのルート表(IR、JSON直列化可)を取り出す。`include_router`、`Depends`の再帰、path/query/header/cookie/bodyに対応。
-- `mfastapi.ir_to_openapi_skeleton(ir)` と `mfastapi.diff_openapi(openapi, skeleton)`: 本家 `/openapi.json` との互換差分テスト(パス・メソッド・パラメータ・本文有無)。
-- `mojo/mfastapi_native.mojo`: `PythonModuleBuilder`による最小のMojo拡張(`add`、パス照合`path_matches`)。WSL上のMojo 1.3.0.dev2026111316でビルドし、Pythonから呼べることをpytest 2件で確認。
-- 未実装: Rustサーバー、段階B/C、スキーマ本体(型)の比較。`mfastapi_native.mojo`の`path_matches`は初期の簡易版でStarlette非互換(互換版は下記のC ABI版)。
+- `fastapim.collect_ir(app)`: FastAPIアプリのルート表(IR、JSON直列化可)を取り出す。`include_router`、`Depends`の再帰、path/query/header/cookie/bodyに対応。
+- `fastapim.ir_to_openapi_skeleton(ir)` と `fastapim.diff_openapi(openapi, skeleton)`: 本家 `/openapi.json` との互換差分テスト(パス・メソッド・パラメータ・本文有無)。
+- `mojo/fastapim_native.mojo`: `PythonModuleBuilder`による最小のMojo拡張(`add`、パス照合`path_matches`)。WSL上のMojo 1.3.0.dev2026111316でビルドし、Pythonから呼べることをpytest 2件で確認。
+- 未実装: Rustサーバー、段階B/C、スキーマ本体(型)の比較。`fastapim_native.mojo`の`path_matches`は初期の簡易版でStarlette非互換(互換版は下記のC ABI版)。
 
 ## テスト
 ```bash
@@ -29,8 +33,8 @@ PowerShellから実行する(Git Bashは`/mnt/...`を書き換える。Windows�
 Mojoの構文はnightlyで変わる(`len(String)`不可→`byte_length()`など)。版は`setup-mojo-wsl.sh`で固定していないため要注意。
 
 ## Python 2 / 3 の両方から呼ぶ(C ABI + ctypes)
-- `mojo/mfastapi_cabi.mojo`: C ABI(`mfastapi_abi_version` / `mfastapi_add` / `mfastapi_path_matches`)の共有ライブラリ。Python C APIに依存しないため版を問わない(静的リンクで`ldd`上の依存なし)。
-- `python/mfastapi/native.py`: ctypesの薄いラッパー(Python 2.7/3.x構文の共通部分のみ)。ライブラリは`MFASTAPI_LIB`または同ディレクトリの`libmfastapi.so`から探す。
+- `mojo/fastapim_cabi.mojo`: C ABI(`fastapim_abi_version` / `fastapim_add` / `fastapim_path_matches`)の共有ライブラリ。Python C APIに依存しないため版を問わない(静的リンクで`ldd`上の依存なし)。
+- `python/fastapim/native.py`: ctypesの薄いラッパー(Python 2.7/3.x構文の共通部分のみ)。ライブラリは`FASTAPIM_LIB`または同ディレクトリの`libfastapim.so`から探す。
 - 確認(WSL, Linux x86_64): Python **2.7.18 / 3.9 / 3.12 / 3.14** で `tests/mojo/test_cabi.py` が成功。
 ```bash
 wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/build-py27-wsl.sh   # 検証用のPython 2.7を~/py27へ(任意)
@@ -41,15 +45,15 @@ Python 2はEOL(2020)のため検証用に限り、Python 2.7のビルドには�
 
 ## 対応OS(ネイティブ層)
 Mojoの公式対応はLinux(x86-64/ARM64)・macOS(Apple silicon)で、Windowsは**WSL経由のみ**(ネイティブ対応は予告段階)。Android・iOSの記載は見つからなかった。
-そのためネイティブ層は **同じC ABIを2つの実装で提供**する: Mojo版(`mojo/mfastapi_cabi.mojo`)と、どこでも動く移植用C版(`c/mfastapi_cabi.c`、C99、C標準ライブラリのみ)。Pythonからは`native.py`(ctypes)が同じ名前で探して読む。
+そのためネイティブ層は **同じC ABIを2つの実装で提供**する: Mojo版(`mojo/fastapim_cabi.mojo`)と、どこでも動く移植用C版(`c/fastapim_cabi.c`、C99、C標準ライブラリのみ)。Pythonからは`native.py`(ctypes)が同じ名前で探して読む。
 
 | OS | 使う実装 | 状態(この環境での実測) |
 |---|---|---|
 | Linux (x86-64) | Mojo / C | **確認済み**: 両実装でPython 2.7・3.12のテスト成功、2実装のパリティ(ランダム20万件)一致 |
 | Windows 10/11 | C(MSVC) | **確認済み**: `scripts/build-windows.ps1`で x64(Python 3.13)・x86(Python 3.14 32bit)のDLLが成功。Mojoは**WSL経由のみ** |
-| Android | C(NDK clang) | **ビルドのみ確認**: arm64-v8a / armeabi-v7a / x86_64 / x86 の`libmfastapi.so`を生成(ELFの機種を確認)。実機・エミュレータでの**実行は未確認**。Chaquopy等のPythonランタイムから名前でロードする想定 |
+| Android | C(NDK clang) | **ビルドのみ確認**: arm64-v8a / armeabi-v7a / x86_64 / x86 の`libfastapim.so`を生成(ELFの機種を確認)。実機・エミュレータでの**実行は未確認**。Chaquopy等のPythonランタイムから名前でロードする想定 |
 | macOS | Mojo(Apple silicon) / C | **未確認**(macOS機が無い)。`CMakeLists.txt`のC版か`mojo build --emit shared-lib` |
-| iOS / iPhone | C(静的ライブラリ) | **未確認**(Xcode無し)。`cmake -DCMAKE_SYSTEM_NAME=iOS`で`mfastapi_static`を作りアプリへリンクする設計。iOSではPythonも組み込み(BeeWare等)が必要でctypesの制約あり |
+| iOS / iPhone | C(静的ライブラリ) | **未確認**(Xcode無し)。`cmake -DCMAKE_SYSTEM_NAME=iOS`で`fastapim_static`を作りアプリへリンクする設計。iOSではPythonも組み込み(BeeWare等)が必要でctypesの制約あり |
 | FreeBSD等のUnix | C | **未確認**(`CMakeLists.txt`で`.so`を作る想定) |
 
 ```bash
@@ -81,13 +85,13 @@ bash scripts/build-android.sh                                      # Android NDK
 - 本物のStarletteは照合の後に`scope`の更新やパラメータ変換(`convert`)も行うため、実アプリでの全体の速度向上はこの表より小さい。
 
 ## 拡張モジュール版の一括照合(Python 3専用、2026-11-14)
-`mojo/mfastapi_native.mojo`(`PythonModuleBuilder`)に **`RouteTable`** を追加した。ルート登録時にテンプレートを一度だけ解析して(リテラルは連結、パラメータは種別コード化)保持し、`table.first_match(path)`が最初に一致した番号(なければ`-1`)を返す。`mojo/mfastapi_match.mojo`(照合の核)・`mojo/mfastapi_table.mojo`(コンパイル済み表)をC ABI版と共有する。
+`mojo/fastapim_native.mojo`(`PythonModuleBuilder`)に **`RouteTable`** を追加した。ルート登録時にテンプレートを一度だけ解析して(リテラルは連結、パラメータは種別コード化)保持し、`table.first_match(path)`が最初に一致した番号(なければ`-1`)を返す。`mojo/fastapim_match.mojo`(照合の核)・`mojo/fastapim_table.mojo`(コンパイル済み表)をC ABI版と共有する。
 ```python
-import mfastapi_native as ext          # build: scripts/build-ext-wsl.sh
+import fastapim_native as ext          # build: scripts/build-ext-wsl.sh
 t = ext.RouteTable(["/", "/items/{id:int}", "/items/{name}"])
 t.first_match("/items/7")   # -> 1
 ```
-`mfastapi.native.make_table(templates)` は拡張があればそれ、無ければctypes版を返す(Python 2でも使える)。
+`fastapim.native.make_table(templates)` は拡張があればそれ、無ければctypes版を返す(Python 2でも使える)。
 
 **速さを出すために入れた工夫**(それぞれ実測で確認): ①ctypesをやめて拡張にし呼び出し固定費を0.74〜0.9µs→約0.14µsへ、②Pythonのstrが持つUTF-8バッファをCPythonから**コピーなしで**直接参照(`PyUnicode_AsUTF8AndSize`、1回あたり約80ns短縮)、③テンプレートを事前解析して毎回の再解析をなくす、④先頭のリテラルを関数呼び出し前にその場で比較して足切り、⑤末尾の`{str}`は取り切れたらバックトラックなしで一致。
 
@@ -146,13 +150,13 @@ t.match("/users/alice/posts/77")   # -> (0, {'uid': 'alice', 'pid': 77})
 
 走査コストがルート数に依存しなくなった(約200〜600ns一定)。なお測定の揺れは±数十%ある(同じ構成を繰り返すと値が変わる)。
 
-## StarletteのRouter / FastAPIへの差し込み `mfastapi.accelerate(app)`(2026-11-14)
+## StarletteのRouter / FastAPIへの差し込み `fastapim.accelerate(app)`(2026-11-14)
 ```python
-import mfastapi
+import fastapim
 app = FastAPI(...)   # または Starlette(...) / Router(...)
-mfastapi.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + mfastapi_native
+fastapim.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + fastapim_native
 ```
-**設計(安全第一)**: ルート探索の「候補の絞り込み」だけを置き換え、判定は本家に任せる。①パスで`RouteTable.first_match_from`を引き、パスが合う候補ルートを番号順に得る。②候補に本家の`route.matches(scope)`を呼ぶ(405のPARTIAL・`child_scope`・`path_params`の変換は本家のまま)。③最初のFULLを本家と同じ手順で処理(Starlette素の`Router.app`の分岐/FastAPIの`APIRouter.app`の分岐を再現)。④**FULLが無い場合は元の`Router.app`にそのまま委ねる**(405・redirect_slashes・FastAPIの低優先度・404の例外経路の挙動は一切変えない)。例外: プレーンなStarletteで「候補が1つも無く、redirect_slashesの候補も無い」場合だけ、全ルート走査を省いて直接`default`(404)へ進む。テンプレートを持たないルート(Host・独自BaseRoute・FastAPIの`include_router`由来など)は「全パス一致の候補」として表に入れ、本家の`matches`で最終判定する(絞り込みが緩いだけで結果は変わらない)。ルート数が8未満なら何もしない。ルート数や末尾が変わると表を作り直す(途中への挿入・並べ替えで数と末尾が同じ場合は`router._mfastapi_state`を消す必要がある)。
+**設計(安全第一)**: ルート探索の「候補の絞り込み」だけを置き換え、判定は本家に任せる。①パスで`RouteTable.first_match_from`を引き、パスが合う候補ルートを番号順に得る。②候補に本家の`route.matches(scope)`を呼ぶ(405のPARTIAL・`child_scope`・`path_params`の変換は本家のまま)。③最初のFULLを本家と同じ手順で処理(Starlette素の`Router.app`の分岐/FastAPIの`APIRouter.app`の分岐を再現)。④**FULLが無い場合は元の`Router.app`にそのまま委ねる**(405・redirect_slashes・FastAPIの低優先度・404の例外経路の挙動は一切変えない)。例外: プレーンなStarletteで「候補が1つも無く、redirect_slashesの候補も無い」場合だけ、全ルート走査を省いて直接`default`(404)へ進む。テンプレートを持たないルート(Host・独自BaseRoute・FastAPIの`include_router`由来など)は「全パス一致の候補」として表に入れ、本家の`matches`で最終判定する(絞り込みが緩いだけで結果は変わらない)。ルート数が8未満なら何もしない。ルート数や末尾が変わると表を作り直す(途中への挿入・並べ替えで数と末尾が同じ場合は`router._fastapim_state`を消す必要がある)。
 
 **等価性テスト**(`tests/accel/test_router_equiv.py`): Starlette・FastAPI(`include_router`のprefix・Mount・型付きパラメータ・405・末尾スラッシュ・redirect_slashes・日本語パス・多数のメソッド)の各315リクエストで、`accelerate`の有無を比較(ステータス・`Location`・`Allow`・本文)。Python 3.12・3.14で**不一致0**。FastAPIで実際に加速されていること、`accelerate`後に追加したルートが効くことも確認。
 
@@ -171,10 +175,10 @@ mfastapi.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + mfa
 **正直な注意**: ①先頭のルートに当たる場合は本家が正規表現1回で済むため、一定の追加費用(約1µs)の分だけ**遅くなる**(10ルートで0.8倍)。損益分岐はおよそ3番目のルート。ルートが均等に使われるなら10ルートでも平均で得になるが、特定の先頭ルートに偏る場合は損。②速度はStarletteの素の`Router`で測った(FastAPIの実測は下の節)。③FastAPIの内部ヘルパ`fastapi.routing._route_selected`(非公開)に依存する(FastAPI 0.143.3で確認、無ければ本家へ委ねる)。④Starlette 1.8.0 / FastAPI 0.143.3 のみで検証。⑤`Router(middleware=...)`を使っている場合は警告して加速しない。⑥WebSocketは専用の等価性テストを追加した(下記)。
 
 ### 未完了だった項目の仕上げ(2026-11-14)
-- **C版コンパイル済みルート表**(`c/mfastapi_cabi.c`の`mfastapi_table_*`、ctypesラッパー`mfastapi.native.CTable`): Mojo拡張が使えない環境(Windows等)でも`accelerate`が動くよう、`mfastapi_native`が無ければ自動でこれに切り替える。テンプレートを1回だけ保持し、**先頭リテラルのバイトtrie**で候補を絞ってからStarlette互換の照合をする(Mojo版と同じ考え方。同じ節のルートは番号順に連結し、最小番号の一致を返す)。`match`(path_params取得)は未提供。当初は線形走査だった(3000ルートの外れで7.4µs)が、trie化で**ルート数によらずほぼ一定**になった(`bench/bench_ctable.py`、ns/回、Python 3.12・WSL、ctypes呼び出しの約1.4µsを含む): 1000ルート末尾 1.6µs(Starletteの166倍)、3000ルート末尾 1.7µs(475倍)、3000ルート外れ 1.4µs(547倍)。先頭ルートに当たる場合は0.7〜0.8倍(ctypesの固定費のため遅い)。ライブラリの読み込みに失敗する例外はすべて本家へ委ねる。
+- **C版コンパイル済みルート表**(`c/fastapim_cabi.c`の`fastapim_table_*`、ctypesラッパー`fastapim.native.CTable`): Mojo拡張が使えない環境(Windows等)でも`accelerate`が動くよう、`fastapim_native`が無ければ自動でこれに切り替える。テンプレートを1回だけ保持し、**先頭リテラルのバイトtrie**で候補を絞ってからStarlette互換の照合をする(Mojo版と同じ考え方。同じ節のルートは番号順に連結し、最小番号の一致を返す)。`match`(path_params取得)は未提供。当初は線形走査だった(3000ルートの外れで7.4µs)が、trie化で**ルート数によらずほぼ一定**になった(`bench/bench_ctable.py`、ns/回、Python 3.12・WSL、ctypes呼び出しの約1.4µsを含む): 1000ルート末尾 1.6µs(Starletteの166倍)、3000ルート末尾 1.7µs(475倍)、3000ルート外れ 1.4µs(547倍)。先頭ルートに当たる場合は0.7〜0.8倍(ctypesの固定費のため遅い)。ライブラリの読み込みに失敗する例外はすべて本家へ委ねる。
 - **C版の差分検証**(`bench/diff_ctable.py`): `first_match`と`first_match_from`をStarletteの`compile_path`と突き合わせ、**16万件×(Linux gcc・Python 3.12/3.14)で不一致0**、**4万件×(Windows MSVC x64・Python 3.13)で不一致0**。
-- **CPython C拡張 `mfastapi_cext`**(`c/mfastapi_pyext.c`、`setup_cext.py`、Python 3専用): 同じC版ルート表をctypesを介さず呼ぶ。`accelerate`の優先順位は Mojo拡張 → `mfastapi_cext` → ctypes版。ctypesの固定費(約1.4µs)が消え、**先頭ルートに当たる場合でもStarletteの約4倍速い**(0.8倍→3.7〜4.5倍)。`first_match`は10〜3000ルートで0.18〜0.40µs(ルート数によらずほぼ一定、3000ルート外れでStarletteの約4,000倍(Linux)〜8,000倍(Windows))。Starlette差分(Linux Python 3.12/3.14で各16万件・Windows MSVC x64 Python 3.13で4万件)・等価性315件×2・WebSocket 7パスとも不一致0。Pythonのバージョンごとにビルドが必要(`scripts/test-cext-wsl.sh`・`scripts/build-windows.ps1`)。未配布(ホイール化・PyPI公開は未着手)。**ルーター全体(`bench_router.py`・`bench_router_fastapi.py`)をcext経由で測り直した結果(Linux・Python 3.12)は、Mojo拡張経由とほぼ同じ**: Starlette素のRouterは10ルート先頭0.8倍・末尾2.1倍、200ルート末尾19倍、1000ルート末尾88倍・外れ155倍。FastAPIは1000ルート末尾3.7倍、200ルート末尾1.6倍、先頭・外れは約1.0倍。つまりルーター全体では、照合そのもの(0.2〜0.4µs)ではなくPython側の差し込み処理(約4µs)が残りを占めており、表の高速化(Mojo→cext→trie)はこれ以上は全体に効かない。10ルート先頭が0.8倍(約0.8µs遅い)なのは、この差し込み処理の固定費のため。削るならPython側の処理(コルーチンの二重化・scopeの辞書参照)が対象で、未着手。
-- **パッケージ化**(`pyproject.toml`・`setup.py`・`MANIFEST.in`、名前`mfastapi` 0.1.0): `pip install .`で、C拡張`mfastapi_cext`は**任意(optional)**としてビルドされる(コンパイラが無ければ拡張なしで入り、ctypes版/本家のまま動く)。WSLで`uv build --wheel`→新しいvenvへ導入→`accelerate`がcext経由で動き200を返すことを確認(`scripts/test-wheel-wsl.sh`)。WSLで作れるのは`linux_x86_64`の環境依存ホイール、Windowsでは`cp313-win_amd64`ホイールを実際にビルド→新しいvenvへ導入→cext経由で等価性テスト(315件×2・WebSocket)不一致0を確認した。配布用の`manylinux`・macOS(Intel/Apple silicon)・Windows・Linux ARMのホイールは、cibuildwheelのGitHub Actions(`.github/workflows/wheels.yml`、各ホイールで等価性テストを実行、成果物はアーティファクト保存)を用意したが、**このPCでは実行できないため、GitHub Actionsで手動実行した(2026-11-14、公開リポジトリなので無料枠)。結果: Windows・macOS(Apple silicon)・Linux ARMの各ジョブは成功、Linux x86_64のmanylinuxホイールも全バージョンで等価性テスト不一致0。失敗は2件で、いずれもCI側の設定が原因: ①`manylinux i686`のコンテナはネットワークが無く依存取得に失敗(→32bit Linuxは対象外にした) ②`macos-13`ランナーが存在せず待機のまま(→`macos-15-intel`へ変更)。この2点を直して再実行した結果、全6ジョブ(Linux x86_64・Linux ARM・Windows・macOS Intel・macOS Apple silicon・sdist)が成功し、各ホイールで等価性テストが通った**。**GitHub Release `v0.1.0`**(https://github.com/aon-co-jp/FastAPIM/releases/tag/v0.1.0)に、Python 3.9〜3.13のホイール30本(manylinux x86_64/aarch64、macOS Intel/Apple silicon、Windows 64/32bit)とsdistを自動添付した(タグ`v*`のpushでCIが作る)。cibuildwheelをv4.3.5へ上げ、**Python 3.14(・3.14t)のホイールも作成済み**(Release `v0.1.1`、計55ファイル。`v0.1.0`は3.9〜3.13のみ)。**PyPIへの公開は未着手**(アカウントと信頼できる発行元の設定が必要なため、ワークフローにも含めていない)。
+- **CPython C拡張 `fastapim_cext`**(`c/fastapim_pyext.c`、`setup_cext.py`、Python 3専用): 同じC版ルート表をctypesを介さず呼ぶ。`accelerate`の優先順位は Mojo拡張 → `fastapim_cext` → ctypes版。ctypesの固定費(約1.4µs)が消え、**先頭ルートに当たる場合でもStarletteの約4倍速い**(0.8倍→3.7〜4.5倍)。`first_match`は10〜3000ルートで0.18〜0.40µs(ルート数によらずほぼ一定、3000ルート外れでStarletteの約4,000倍(Linux)〜8,000倍(Windows))。Starlette差分(Linux Python 3.12/3.14で各16万件・Windows MSVC x64 Python 3.13で4万件)・等価性315件×2・WebSocket 7パスとも不一致0。Pythonのバージョンごとにビルドが必要(`scripts/test-cext-wsl.sh`・`scripts/build-windows.ps1`)。未配布(ホイール化・PyPI公開は未着手)。**ルーター全体(`bench_router.py`・`bench_router_fastapi.py`)をcext経由で測り直した結果(Linux・Python 3.12)は、Mojo拡張経由とほぼ同じ**: Starlette素のRouterは10ルート先頭0.8倍・末尾2.1倍、200ルート末尾19倍、1000ルート末尾88倍・外れ155倍。FastAPIは1000ルート末尾3.7倍、200ルート末尾1.6倍、先頭・外れは約1.0倍。つまりルーター全体では、照合そのもの(0.2〜0.4µs)ではなくPython側の差し込み処理(約4µs)が残りを占めており、表の高速化(Mojo→cext→trie)はこれ以上は全体に効かない。10ルート先頭が0.8倍(約0.8µs遅い)なのは、この差し込み処理の固定費のため。削るならPython側の処理(コルーチンの二重化・scopeの辞書参照)が対象で、未着手。
+- **パッケージ化**(`pyproject.toml`・`setup.py`・`MANIFEST.in`、名前`fastapim` 0.1.0): `pip install .`で、C拡張`fastapim_cext`は**任意(optional)**としてビルドされる(コンパイラが無ければ拡張なしで入り、ctypes版/本家のまま動く)。WSLで`uv build --wheel`→新しいvenvへ導入→`accelerate`がcext経由で動き200を返すことを確認(`scripts/test-wheel-wsl.sh`)。WSLで作れるのは`linux_x86_64`の環境依存ホイール、Windowsでは`cp313-win_amd64`ホイールを実際にビルド→新しいvenvへ導入→cext経由で等価性テスト(315件×2・WebSocket)不一致0を確認した。配布用の`manylinux`・macOS(Intel/Apple silicon)・Windows・Linux ARMのホイールは、cibuildwheelのGitHub Actions(`.github/workflows/wheels.yml`、各ホイールで等価性テストを実行、成果物はアーティファクト保存)を用意したが、**このPCでは実行できないため、GitHub Actionsで手動実行した(2026-11-14、公開リポジトリなので無料枠)。結果: Windows・macOS(Apple silicon)・Linux ARMの各ジョブは成功、Linux x86_64のmanylinuxホイールも全バージョンで等価性テスト不一致0。失敗は2件で、いずれもCI側の設定が原因: ①`manylinux i686`のコンテナはネットワークが無く依存取得に失敗(→32bit Linuxは対象外にした) ②`macos-13`ランナーが存在せず待機のまま(→`macos-15-intel`へ変更)。この2点を直して再実行した結果、全6ジョブ(Linux x86_64・Linux ARM・Windows・macOS Intel・macOS Apple silicon・sdist)が成功し、各ホイールで等価性テストが通った**。**GitHub Release `v0.1.0`**(https://github.com/aon-co-jp/FastAPIM/releases/tag/v0.1.0)に、Python 3.9〜3.13のホイール30本(manylinux x86_64/aarch64、macOS Intel/Apple silicon、Windows 64/32bit)とsdistを自動添付した(タグ`v*`のpushでCIが作る)。cibuildwheelをv4.3.5へ上げ、**Python 3.14(・3.14t)のホイールも作成済み**(Release `v0.1.1`、計55ファイル。`v0.1.0`は3.9〜3.13のみ)。**PyPIへの公開は未着手**(アカウントと信頼できる発行元の設定が必要なため、ワークフローにも含めていない)。
 - **Starlette/FastAPIのバージョン**: 等価性テスト(315件×2・WebSocket 7パス)を cext経由で Starlette 0.46.2+FastAPI 0.115.14 / 0.52.1+0.128.8 / 最新(1.10.0+0.162.7)の3組で実行し、すべて不一致0(`scripts/test-versions-wsl.sh`)。古いFastAPIでは`include_router`がワイルドカード候補を作らないため、テスト内の`plain is False`の固定は外した。
 - **Python側の差し込み処理の削減**: 属性参照・定数の事前束縛などの微最適化を入れたが、測定上の改善はほぼ無かった(10ルート先頭 4.66µs→4.63µs、0.8倍のまま)。残る約0.8µsは表の呼び出しと本家と二重になる最小限の手順で、これ以上は構造を変えない限り削れない。
 - **等価性テスト**はC版でも合格: Linux(Python 3.12/3.14)・Windows(MSVC x64・Python 3.13)とも、Starlette・FastAPI 各315リクエストで不一致0。
@@ -183,22 +187,22 @@ mfastapi.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + mfa
 - 限界: Windowsで検証したのはC版(MSVC x64、Python 3.13)のみ。**ネイティブWindowsのMojo拡張・macOS・Android・iOSは、実行環境が無い/Mojoが未対応のため未検証**(macOSはMojo公式対応だがこのPCに実機なし)。
 
 ### 実機に近い環境での検証(GitHub Actions、2026-11-14)
-- **Mojo拡張**(`.github/workflows/mojo.yml`): Linux x86_64・Linux ARM64・**macOS Apple silicon**の3環境でMojo(nightly)から`mfastapi_native`をビルドし、Starlette差分4万件・Starlette/FastAPI各315件の等価性・WebSocket 7パスがすべて不一致0(`accelerate`が`mfastapi_native`を使うことも確認)。これでMojo拡張はmacOSでも確認済み。
+- **Mojo拡張**(`.github/workflows/mojo.yml`): Linux x86_64・Linux ARM64・**macOS Apple silicon**の3環境でMojo(nightly)から`fastapim_native`をビルドし、Starlette差分4万件・Starlette/FastAPI各315件の等価性・WebSocket 7パスがすべて不一致0(`accelerate`が`fastapim_native`を使うことも確認)。これでMojo拡張はmacOSでも確認済み。
 - **macOS・Windows・Linux ARMのC拡張ホイール**: `wheels.yml`の各ジョブで等価性テストが通っている(上記)。
-- **iOS・Android**(`.github/workflows/mobile.yml`、手動実行): cibuildwheelでiOSシミュレーター(`cp313-ios_arm64_iphonesimulator`)・Androidエミュレーター(`cp313-android_x86_64`)向けのホイールを作り、実際にシミュレーター/エミュレーター上で`python -m mfastapi_cext_selftest`(C拡張の依存なしセルフテスト)が合格した。**確認したのはC拡張の照合(iOS・Androidで`fastapi`が入らないためセルフテスト限定)であり、StarletteやFastAPIとの等価性テストは未実施。実機(実際のiPhone・Android端末)・arm64のAndroidエミュレーター・Python 3.13以外は未確認**。モバイルのホイールはReleaseには添付していない。
+- **iOS・Android**(`.github/workflows/mobile.yml`、手動実行): cibuildwheelでiOSシミュレーター(`cp313-ios_arm64_iphonesimulator`)・Androidエミュレーター(`cp313-android_x86_64`)向けのホイールを作り、実際にシミュレーター/エミュレーター上で`python -m fastapim_cext_selftest`(C拡張の依存なしセルフテスト)が合格した。**確認したのはC拡張の照合(iOS・Androidで`fastapi`が入らないためセルフテスト限定)であり、StarletteやFastAPIとの等価性テストは未実施。実機(実際のiPhone・Android端末)・arm64のAndroidエミュレーター・Python 3.13以外は未確認**。モバイルのホイールはReleaseには添付していない。
 - **ネイティブWindowsのMojo拡張**: Mojoが公式にWindowsネイティブ対応していない(WSL経由のみ)ため、引き続き未対応(C拡張/ctypes版を使う)。
-- **fastapi非依存化とモバイルでの等価性**(2026-11-14): `import mfastapi`と`accelerate`はStarletteだけで動くようにした(IR/OpenAPI関連は使う時に遅延importし、`fastapi`はオプション依存`mfastapi[fastapi]`)。等価性テストはインストールされるモジュール`mfastapi_equiv_selftest`(`python -m mfastapi_equiv_selftest`)にし、fastapiが無ければStarletteのみ検証する。これにより**iOSシミュレーター・Androidエミュレーター上でも、Starletteの等価性315件+WebSocket 7パスが不一致0**で合格した(`mobile.yml`、`accelerate`がC拡張経由で動作)。FastAPI側の等価性はモバイルでは未実施(pydantic-coreのモバイル用ホイールが無いため)。
+- **fastapi非依存化とモバイルでの等価性**(2026-11-14): `import fastapim`と`accelerate`はStarletteだけで動くようにした(IR/OpenAPI関連は使う時に遅延importし、`fastapi`はオプション依存`fastapim[fastapi]`)。等価性テストはインストールされるモジュール`fastapim_equiv_selftest`(`python -m fastapim_equiv_selftest`)にし、fastapiが無ければStarletteのみ検証する。これにより**iOSシミュレーター・Androidエミュレーター上でも、Starletteの等価性315件+WebSocket 7パスが不一致0**で合格した(`mobile.yml`、`accelerate`がC拡張経由で動作)。FastAPI側の等価性はモバイルでは未実施(pydantic-coreのモバイル用ホイールが無いため)。
 
 ## LinuxのWebサーバーで使う(Mojoあり / C拡張 / 拡張なし)(2026-11-14)
-**結論: Linuxなら動く。Mojoが無くても、mfastapiだけでも動く。** 実際のWebサーバー(uvicorn、FastAPI・ルート200本)で3つのモードを起動し、同じリクエストを送って確認した(`scripts/test-server-wsl.sh`、`examples/server_app.py`、WSL Ubuntu・Python 3.12):
+**結論: Linuxなら動く。Mojoが無くても、fastapimだけでも動く。** 実際のWebサーバー(uvicorn、FastAPI・ルート200本)で3つのモードを起動し、同じリクエストを送って確認した(`scripts/test-server-wsl.sh`、`examples/server_app.py`、WSL Ubuntu・Python 3.12):
 
 | モード | 使われる実装 | 準備 |
 |---|---|---|
-| ① Mojo | Mojo拡張(`mfastapi_native`) | MojoでビルドしたLinux用の`.so`をPYTHONPATHに置く(Linux x86_64/ARM64はMojo公式対応) |
-| ② C拡張 | `mfastapi_cext` | `pip install mfastapi`(ホイールにC拡張が入る。Mojo不要) |
+| ① Mojo | Mojo拡張(`fastapim_native`) | MojoでビルドしたLinux用の`.so`をPYTHONPATHに置く(Linux x86_64/ARM64はMojo公式対応) |
+| ② C拡張 | `fastapim_cext` | `pip install fastapim`(ホイールにC拡張が入る。Mojo不要) |
 | ③ 拡張なし | 本家のルート探索のまま | `PYTHONPATH`に`python/`だけ。コンパイラもMojoも不要(`accelerate`は警告を出して何もしない) |
 
-- `mfastapi.backend()`で、いま使われている実装(`"mojo"` / `"cext"` / `"ctypes"` / `"none"`)を確認できる。環境変数`MFASTAPI_DISABLE=1`で、再デプロイなしに`accelerate`を無効化できる(運用上の安全弁)。
+- `fastapim.backend()`で、いま使われている実装(`"mojo"` / `"cext"` / `"ctypes"` / `"none"`)を確認できる。環境変数`FASTAPIM_DISABLE=1`で、再デプロイなしに`accelerate`を無効化できる(運用上の安全弁)。
 - **結果**: 3モードとも起動でき、8本のリクエスト(各ルート・パスパラメータ・`{p:path}`・404・末尾スラッシュ・`/__backend`)の**ステータスと本文がモード間で完全に同一**だった。
 - **速度(uvicornの実HTTP、1リクエストあたり)**: 200ルートで、末尾ルートは拡張なし1,345µs → Mojo 1,088µs・C拡張 1,086µs(約1.24倍)。先頭ルートと404は約1,030〜1,150µsで差なし。HTTPサーバーとFastAPIの処理が大半で、ルート探索の短縮は目立ちにくい。**数十〜数千ルートで、末尾寄りのルートが多いアプリほど効く**(前節のベンチ参照)。MojoとC拡張に実用上の差は無い。
 - 注意: 測定は1台のWSL(ループバック接続)のみ。マルチワーカー・本番のnginx/リバースプロキシ配下・負荷下での測定は未実施。
@@ -207,12 +211,12 @@ mfastapi.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + mfa
 FastAPIの本体(引数の取り出し・Pydantic検証・`Depends`・OpenAPI・`/docs`)はそのまま、**エンドポイントの中身(計算)だけをMojoで書く**。
 
 ```python
-import mfastapi_handlers as h          # mojo/mfastapi_handlers.mojo をビルドした拡張
-from mfastapi import mojo_endpoint
+import fastapim_handlers as h          # mojo/fastapim_handlers.mojo をビルドした拡張
+from fastapim import mojo_endpoint
 app.add_api_route("/fib/{n}", mojo_endpoint(h.fib, {"n": int}, returns=int), methods=["GET"])
 app.add_api_route("/primes", mojo_endpoint(h.count_primes, {"n": (int, 1000)}, returns=int))   # クエリn(既定1000)
 ```
-Mojo拡張の関数にはシグネチャが無いため、`params`で宣言した引数名・型・既定値を持つ薄いPython関数でくるむ(`inspect.Signature`を設定)。Mojo側の`raise`はHTTP 400(`error_status`で変更可)になる。サンプルのMojo関数(`mojo/mfastapi_handlers.mojo`): `fib`・`count_primes`(ふるい)・`word_count`・`mean`。ビルドは`scripts/build-handlers-wsl.sh`、検証は`scripts/test-handlers-wsl.sh`。
+Mojo拡張の関数にはシグネチャが無いため、`params`で宣言した引数名・型・既定値を持つ薄いPython関数でくるむ(`inspect.Signature`を設定)。Mojo側の`raise`はHTTP 400(`error_status`で変更可)になる。サンプルのMojo関数(`mojo/fastapim_handlers.mojo`): `fib`・`count_primes`(ふるい)・`word_count`・`mean`。ビルドは`scripts/build-handlers-wsl.sh`、検証は`scripts/test-handlers-wsl.sh`。
 
 **検証**(`tests/mojo_endpoint/test_endpoint.py`、Python 3.12・3.14): 同じ4エンドポイントを純Pythonで書いたものと比較。正常系・型エラー(422、本文もFastAPI生成)・欠落・不正本文を含む14ケースで**ステータスと本文が一致(不一致0)**、OpenAPIの`parameters`・`requestBody`・応答スキーマ・`operationId`も一致、Mojoの`raise`がHTTP 400になることを確認。
 
@@ -246,7 +250,7 @@ Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...
 - **制限**: Pythonは1プロセス1インタープリタ(GIL)のため、`num_workers=1`に固定している(複数ワーカーでの安全なGIL処理は未検証)。`MOJO_PYTHON_LIBRARY`で`libpython`を指定する必要がある。FastAPIの`Depends`・Pydantic検証・ミドルウェアは使えない(Python側の関数は文字列を受けて文字列を返すだけ)。
 - 検証はLinux(WSL)のみ。flareは外部の若いプロジェクト(2026-11時点)で、APIが変わる可能性がある。
 
-### 段階B・CでもOpenAPIと422をFastAPIにそろえる(`mojo/mfastapi_web.mojo`、2026-11-14)
+### 段階B・CでもOpenAPIと422をFastAPIにそろえる(`mojo/fastapim_web.mojo`、2026-11-14)
 段階B・CのMojoサーバーも、FastAPI(+Mojo関数版)と同じ形式で次を返す。
 - **422**: `{"detail":[{"type":"int_parsing","loc":["path","n"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"abc"}]}`、必須欠落は `type:"missing"`(`input:null`)。
 - **`/openapi.json`**(OpenAPI 3.1、parameters・operationId・422・`HTTPValidationError`/`ValidationError`)と **`/docs`**(Swagger UI)。
@@ -257,5 +261,5 @@ Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...
 - 基準は**本物のuvicorn上のFastAPI**(TestClientはパスの`%25`を二重に復号し`.`を正規化するため基準にしない。これはファジングで判明)。Mojoサーバーと同じ要求を送り、ステータスと本文(JSON)を比較する。
 - ファジング(seed固定、`tests/mojo_endpoint/test_mojo_server_compat.py`): 整数パラメータに約400種の文字列(空白・`+-`・`_`・`.`・`e`・非ASCII・`%`エンコード等)、クエリのint/str、重複キー(最後が勝つ)、`?n`(値なし)、`+`と`%2B`。**段階C 942件・段階B 394件で差異0**、OpenAPIの各経路・`HTTPValidationError`/`ValidationError`も一致。
 - ファジングで見つけて直した差: 重複クエリキー(最初→最後)、`#`はクエリ内の文字として扱う。
-- 保証の範囲: 上記の機能(パス/クエリのint・str、422、OpenAPI)。**範囲外**: Depends・Pydanticモデルの本文・ミドルウェア・str以外の型(段階B・Cでは未対応)、18桁超の整数(64bit)、404本文の形式。ルーティング加速層(`accelerate`)は別途 `mfastapi_equiv_selftest` でStarletteと同値を確認している。
+- 保証の範囲: 上記の機能(パス/クエリのint・str、422、OpenAPI)。**範囲外**: Depends・Pydanticモデルの本文・ミドルウェア・str以外の型(段階B・Cでは未対応)、18桁超の整数(64bit)、404本文の形式。ルーティング加速層(`accelerate`)は別途 `fastapim_equiv_selftest` でStarletteと同値を確認している。
 - 段階Bの複数ワーカー: 各Python呼び出しで `PyGILState_Ensure` によりGILを取る(以前は `num_workers>1` でsegfault)。負荷試験(`scripts/load-test-wsl.sh`、16並列×2000件): workers=1/2/4とも失敗0・本文一致。ただしGILのためPython処理のスループットはworkersを増やしても伸びない(`/py/hello` 約2,300 req/s、`/py/fib/20` 約460 req/s、段階C `/fib/30` 約400 req/s)。

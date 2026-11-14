@@ -6,14 +6,14 @@ import os
 import random
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "python", "mfastapi"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "python", "fastapim"))
 import native  # noqa: E402
 
 
 def lib_fn(path):
     lib = native.load(path)
     def f(t, p):
-        return bool(lib.mfastapi_path_matches(t, len(t), p, len(p)))
+        return bool(lib.fastapim_path_matches(t, len(t), p, len(p)))
     return f
 
 

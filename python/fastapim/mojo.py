@@ -5,7 +5,7 @@ FastAPIは関数のシグネチャ(引数名・型・既定値)から、パス/�
 Mojo拡張の関数にはシグネチャが無いので、宣言したシグネチャを持つ薄いPythonの関数でくるんで渡す。検証・依存関係・OpenAPI・
 `/docs` は本家FastAPIのまま、中身の計算だけがMojo。
 
-    import mfastapi_handlers as h
+    import fastapim_handlers as h
     app.add_api_route("/fib/{n}", mojo_endpoint(h.fib, {"n": int}, returns=int), methods=["GET"])
     app.add_api_route("/primes", mojo_endpoint(h.count_primes, {"n": (int, 1000)}, returns=int))   # クエリ n(既定1000)
 

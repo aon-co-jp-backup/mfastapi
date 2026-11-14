@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """ルート照合の速度: Starlette(コンパイル済み正規表現を順に試す) vs ネイティブ(1件ずつ呼ぶ/表を一括)。
-使い方: MFASTAPI_LIB=<lib> python bench/bench_match.py   (Python 3 + starlette)"""
+使い方: FASTAPIM_LIB=<lib> python bench/bench_match.py   (Python 3 + starlette)"""
 import os, sys, time, platform
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "python", "mfastapi"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "python", "fastapim"))
 import native
 try:
-    import mfastapi_native as ext
+    import fastapim_native as ext
 except ImportError:
     ext = None
 from starlette.routing import compile_path
@@ -20,7 +20,7 @@ def best(fn, loops, repeats=7):
     return t / loops * 1e9  # ns/call
 
 def main():
-    print("python", platform.python_version(), platform.system(), "lib", os.environ.get("MFASTAPI_LIB"))
+    print("python", platform.python_version(), platform.system(), "lib", os.environ.get("FASTAPIM_LIB"))
     print("%-5s %-7s %10s %12s %12s %12s %12s %8s %8s" % ("N", "target", "starlette", "ctypes 1x1", "ctypes batch", "ext linear", "ext trie", "ctypes", "ext"))
     for n in (10, 50, 200, 1000, 3000):
         routes = make_routes(n)

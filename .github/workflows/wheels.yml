@@ -21,7 +21,7 @@ jobs:
         env:
           CIBW_SKIP: "pp* *-musllinux_* *-manylinux_i686 cp38-*"
           CIBW_TEST_REQUIRES: "fastapi httpx"
-          CIBW_TEST_COMMAND: "python -m mfastapi_equiv_selftest"
+          CIBW_TEST_COMMAND: "python -m fastapim_equiv_selftest"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}

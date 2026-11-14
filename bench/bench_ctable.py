@@ -1,15 +1,15 @@
 # -*- coding: utf-8 -*-
 """C版ルート表(native.CTable)の first_match の速さを、Starlette(正規表現を順に)と比べる。
-使い方: MFASTAPI_LIB=<lib> PYTHONPATH=<repo>/python python bench/bench_ctable.py"""
+使い方: FASTAPIM_LIB=<lib> PYTHONPATH=<repo>/python python bench/bench_ctable.py"""
 import time
 
 try:
-    import mfastapi_cext as _cx
+    import fastapim_cext as _cx
 
     class native:
         CTable = _cx.RouteTable
 except ImportError:
-    from mfastapi import native
+    from fastapim import native
 from starlette.routing import compile_path
 
 KINDS = ["/api/v1/res{i}/{{id:int}}", "/api/v1/res{i}/{{name}}/detail", "/static{i}/{{p:path}}",

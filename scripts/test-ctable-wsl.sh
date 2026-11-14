@@ -4,7 +4,7 @@
 set -euo pipefail
 export PATH="$HOME/.local/bin:/usr/bin:/bin"
 bash /mnt/f/mfastapi/scripts/cc-check-wsl.sh
-export MFASTAPI_LIB="$HOME/mfastapi-c/libmfastapi_c.so"
+export FASTAPIM_LIB="$HOME/mfastapi-c/libfastapim_c.so"
 export PYTHONPATH="/mnt/f/mfastapi/python"
 for v in 3.12 3.14; do
   echo "[C table differential, Python $v]"

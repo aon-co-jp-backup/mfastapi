@@ -1,5 +1,5 @@
 """Pre-compiled route table: templates are parsed once, then matched without re-parsing."""
-from mfastapi_match import (
+from fastapim_match import (
     Ctx,
     FPtr,
     K_FLOAT,

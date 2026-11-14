@@ -1,16 +1,16 @@
 """Stage C: pure-Mojo handlers on flare (https://github.com/ehsanmok/flare). No Python in the request path.
 
 Run (flare checkout at ~/flare, Mojo from its pixi env):
-    cd ~/flare && pixi run mojo -I . -I /path/to/mfastapi/mojo /path/to/mfastapi/mojo/server_c.mojo [port]
+    cd ~/flare && pixi run mojo -I . -I /path/to/fastapim/mojo /path/to/fastapim/mojo/server_c.mojo [port]
 Same routes as the FastAPI demo (tests/mojo_endpoint): GET /fib/{n}, /primes?n=, /words?text=.
-Validation errors are FastAPI-compatible 422 responses; /openapi.json and /docs are served (see mfastapi_web.mojo).
+Validation errors are FastAPI-compatible 422 responses; /openapi.json and /docs are served (see fastapim_web.mojo).
 """
 from std.sys import argv
 
 from flare.prelude import *
 from flare.net import SocketAddr
 
-from mfastapi_web import (
+from fastapim_web import (
     Errors,
     ParamSpec,
     RouteSpec,
@@ -137,5 +137,5 @@ def main() raises:
     r.get("/openapi.json", openapi)
     r.get("/docs", docs)
     var srv = HttpServer.bind(SocketAddr.localhost(UInt16(port)))
-    print("mfastapi stage C (pure Mojo) listening on 127.0.0.1:" + String(port))
+    print("fastapim stage C (pure Mojo) listening on 127.0.0.1:" + String(port))
     srv.serve(r^, num_workers=2)

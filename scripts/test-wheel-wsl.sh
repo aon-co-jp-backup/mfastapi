@@ -11,13 +11,13 @@ uv venv --python 3.12 v >/dev/null
 uv pip install --python v/bin/python dist/*.whl httpx >/dev/null
 cd /
 "$W/v/bin/python" - <<'PY'
-import mfastapi, mfastapi.accel as a
+import fastapim, fastapim.accel as a
 print("table impl:", a._ext.__name__ if hasattr(a._ext, "__name__") else a._ext)
 from fastapi import FastAPI
 app = FastAPI()
 for i in range(10):
     app.add_api_route("/r%d/{x}" % i, lambda x: {"x": x}, methods=["GET"])
-mfastapi.accelerate(app)
+fastapim.accelerate(app)
 from fastapi.testclient import TestClient
 r = TestClient(app).get("/r9/5")
 print(r.status_code, r.json())

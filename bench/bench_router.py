@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
-"""Starlette Router のルート探索(ASGI呼び出し全体)の速さ: 本家 vs mfastapi.accelerate。
+"""Starlette Router のルート探索(ASGI呼び出し全体)の速さ: 本家 vs fastapim.accelerate。
 エンドポイントは何もしないASGIアプリにして、探索とディスパッチの費用だけを測る。
-使い方: PYTHONPATH=<mfastapi_native.soのdir>:<repo>/python python bench/bench_router.py"""
+使い方: PYTHONPATH=<fastapim_native.soのdir>:<repo>/python python bench/bench_router.py"""
 import asyncio
 import platform
 import time
 
 from starlette.routing import Route, Router
 
-from mfastapi import accelerate
+from fastapim import accelerate
 
 
 class Hit:

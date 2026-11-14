@@ -1,6 +1,6 @@
 """Starlette-compatible path matcher core (shared by the C ABI library and the Python extension)."""
 
-# mfastapi_path_matches はStarletteのcompile_path()/re.matchと同じ意味(c/mfastapi_cabi.c と同一ロジック)。
+# fastapim_path_matches はStarletteのcompile_path()/re.matchと同じ意味(c/fastapim_cabi.c と同一ロジック)。
 # 戻り値: 1=一致, 0=不一致, -1=未知の型名, -2=バックトラック上限で断念。
 comptime K_STR = 0
 comptime K_PATH = 1

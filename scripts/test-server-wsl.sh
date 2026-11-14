@@ -30,7 +30,7 @@ def run(path, n=3000):
 print("%-5s req/last-route: %6.0f us   first-route: %6.0f us   404: %6.0f us" % (mode, run("/api/v1/res199/z"), run("/svc0/items"), run("/nope")))
 PY
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
-  echo "[$mode] $(grep 'mfastapi backend' /tmp/mf-srv/$mode.log | head -1)"
+  echo "[$mode] $(grep 'fastapim backend' /tmp/mf-srv/$mode.log | head -1)"
 done
 echo "== 応答の比較(/__backend 行は実装名が違うので除く) =="
 for m in mojo cext; do

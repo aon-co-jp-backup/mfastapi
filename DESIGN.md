@@ -1,7 +1,7 @@
-# mfastapi 設計書(新規設計・初版 2026-11-14)
+# fastapim 設計書(新規設計・初版 2026-11-14)
 
 Mojo Support for Python's FastAPI. 対象リポジトリ: https://github.com/aon-co-jp/FastAPIM (現状は空)。
-この文書は調査結果に基づく設計案で、実装・コミット・mfastapiリポジトリへの移動はまだ行っていない。
+この文書は調査結果に基づく設計案で、実装・コミット・fastapimリポジトリへの移動はまだ行っていない。
 
 ## 1. 調査結果(英語・日本語のWeb検索とGitHub検索)
 
@@ -17,7 +17,7 @@ Mojo Support for Python's FastAPI. 対象リポジトリ: https://github.com/aon
 | Granian / Robyn | RustのHTTPサーバー(Hyper+Tokio、PyO3)がASGI/RSGI/WSGIのPythonアプリを動かす。 | **Rust層の先例**。FastAPI自体はそのまま載せて速くできる。 |
 
 結論: 「FastAPI互換のMojoフレームワーク」は既にMilkhaが存在し、Lightbugは終了。
-mfastapiの価値は **(1)本家FastAPIアプリを壊さず段階的にMojo/Rustへ移せること、(2)RUNOの方針(Connect/gRPC・RS-JSON・共有基盤)に合うこと**に置く。
+fastapimの価値は **(1)本家FastAPIアプリを壊さず段階的にMojo/Rustへ移せること、(2)RUNOの方針(Connect/gRPC・RS-JSON・共有基盤)に合うこと**に置く。
 
 ## 2. 目標と非目標
 
@@ -34,7 +34,7 @@ mfastapiの価値は **(1)本家FastAPIアプリを壊さず段階的にMojo/Rus
 
 ```
 段階A  互換モード  : CPython FastAPI + Starlette
-                     ├ サーバー: Rust (Granian相当/自前 mfastapi-server, ASGI)
+                     ├ サーバー: Rust (Granian相当/自前 fastapim-server, ASGI)
                      └ 計算: Mojo拡張(.so)/Rust拡張(PyO3)/C++(C ABI) を関数単位で差し替え
 段階B  ハイブリッド: Mojoがルーティング・HTTP・検証を担当(Flare)、
                      Pythonハンドラは「境界」を越えて呼ぶ(GIL費用あり)
@@ -53,7 +53,7 @@ mfastapiの価値は **(1)本家FastAPIアプリを壊さず段階的にMojo/Rus
 - **C++**: C ABI越しの既存ライブラリ呼び出しのみ。
 
 ### 配備方針との整合(CLAUDE.md 2026-11-09)
-Mojoランタイム・計算基盤はVPSに**1回だけ**入れ、サイトごとに同梱しない。各サイトはmfastapiをConnect/gRPCで呼ぶ。同時要求はワーカー/テナント単位で分離する。
+Mojoランタイム・計算基盤はVPSに**1回だけ**入れ、サイトごとに同梱しない。各サイトはfastapimをConnect/gRPCで呼ぶ。同時要求はワーカー/テナント単位で分離する。
 
 ## 4. 互換範囲(段階A→Cの順に広げる)
 
@@ -69,12 +69,12 @@ Mojoランタイム・計算基盤はVPSに**1回だけ**入れ、サイトご�
 
 ○=対応、△=一部、空欄は未定。互換表は実装ごとにテスト結果で更新する(推測で○にしない)。
 
-## 5. リポジトリ構成案(mfastapi)
+## 5. リポジトリ構成案(fastapim)
 
 ```
-mfastapi/
+fastapim/
   README.md CLAUDE.md PORTING.md       # 日本語(GitHub側は後で多言語)
-  python/mfastapi/                     # 互換層・IR収集・importフック
+  python/fastapim/                     # 互換層・IR収集・importフック
   mojo/                                # PythonModuleBuilder拡張、段階B/C(Flare)
   rust/ (workspace)                    # server, ir, openapi, pyo3拡張
   cpp/                                 # C ABIラッパ(必要時のみ)
@@ -84,7 +84,7 @@ mfastapi/
 
 ## 6. 検証計画(性能の主張は実測のみ)
 1. 互換テスト: 本家FastAPI公式チュートリアルの例を段階A/B/Cで動かし、レスポンスと`/openapi.json`を差分比較。
-2. 性能: plaintext/JSON/DB往復を、本家FastAPI(uvicorn)・Granian・Milkha・mfastapi各段階で同一マシン・同一条件に測る。Milkhaの「10〜50倍」は鵜呑みにしない。
+2. 性能: plaintext/JSON/DB往復を、本家FastAPI(uvicorn)・Granian・Milkha・fastapim各段階で同一マシン・同一条件に測る。Milkhaの「10〜50倍」は鵜呑みにしない。
 3. 境界費用: Mojo拡張を1リクエスト内で何回呼ぶとGIL費用が利得を上回るか測る。
 4. セキュリティ: 外部入力はRS-JSONの上限つきパース、fuzz(Flare同様)をCIに。
 

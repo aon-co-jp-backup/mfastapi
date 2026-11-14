@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-"""C拡張 mfastapi_cext の依存なしセルフテスト。実行: python -m mfastapi_cext_selftest(iOS/Androidなど、fastapiが入らない環境用)。"""
-import mfastapi_cext as c
+"""C拡張 fastapim_cext の依存なしセルフテスト。実行: python -m fastapim_cext_selftest(iOS/Androidなど、fastapiが入らない環境用)。"""
+import fastapim_cext as c
 
 t = c.RouteTable(["/a/{x}", "/items/{id:int}", "/files/{p:path}", "/u/{u:uuid}", "/m/{f:float}", "/あ/{n}"])
 assert t.size() == 6
@@ -16,4 +16,4 @@ try:
     raise SystemExit("unknown convertor was accepted")
 except ValueError:
     pass
-print("mfastapi_cext smoke OK")
+print("fastapim_cext smoke OK")
