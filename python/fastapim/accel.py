@@ -19,9 +19,15 @@ import warnings
 from typing import Any
 
 try:
-    import fastapim_native as _ext  # Mojo拡張(最速)
+    import fastapim_rust as _ext  # Rust拡張(既定。安全なRust製コア)
 except ImportError:  # pragma: no cover
     _ext = None
+
+if _ext is None:
+    try:
+        import fastapim_native as _ext  # Mojo拡張
+    except ImportError:  # pragma: no cover
+        _ext = None
 
 if _ext is None:  # Mojoが無い環境: C版ルート表のCPython拡張(呼び出し費用が小さい)
     try:
@@ -53,13 +59,15 @@ _FULL = Match.FULL
 
 
 def backend() -> str:
-    """いま使われる照合の実装: "mojo"(Mojo拡張) / "cext"(C拡張) / "ctypes"(共有ライブラリ) / "none"(拡張なし=本家のまま)。
+    """いま使われる照合の実装: "rust"(Rust拡張、既定) / "mojo"(Mojo拡張) / "cext"(C拡張) / "ctypes"(共有ライブラリ) / "none"(拡張なし=本家のまま)。
     環境変数 FASTAPIM_DISABLE=1 のときは "none"(accelerateは何もしない)。"""
     if os.environ.get("FASTAPIM_DISABLE"):
         return "none"
     if _ext is None:
         return "none"
     name = getattr(_ext, "__name__", "")
+    if name == "fastapim_rust":
+        return "rust"
     if name == "fastapim_native":
         return "mojo"
     if name == "fastapim_cext":
