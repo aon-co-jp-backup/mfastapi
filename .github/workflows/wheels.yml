@@ -1,0 +1,38 @@
+name: wheels
+
+# 配布用ホイール(manylinux / macOS / Windows)をビルドし、各ホイールで等価性テストを実行する。
+# PyPIへの公開は含めない(アカウント・信頼できる発行元の設定が必要なため)。成果物はActionsのアーティファクトとして保存する。
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  wheels:
+    name: wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pypa/cibuildwheel@v2.23.3
+        env:
+          CIBW_SKIP: "pp* *-musllinux_* cp38-*"
+          CIBW_TEST_REQUIRES: "fastapi httpx"
+          CIBW_TEST_COMMAND: "python {project}/tests/accel/test_router_equiv.py"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: wheelhouse/*.whl
+
+  sdist:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: pipx run build --sdist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: sdist
+          path: dist/*.tar.gz

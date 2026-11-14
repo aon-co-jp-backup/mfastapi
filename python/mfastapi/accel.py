@@ -48,6 +48,7 @@ except ImportError:  # pragma: no cover
     def get_route_path(scope):  # type: ignore
         return scope["path"]
 
+_FULL = Match.FULL
 MIN_ROUTES = 8  # これ未満のルート数では、本家の逐次走査のほうが速い(実測)ので何もしない
 _WILDCARD = "{x:path}"
 
@@ -68,7 +69,7 @@ def _template_of(route: Any) -> str:
 
 
 class _State:
-    __slots__ = ("table", "routes", "n", "plain")
+    __slots__ = ("table", "routes", "n", "plain", "find", "last")
 
     def __init__(self, routes):
         self.routes = list(routes)
@@ -81,6 +82,8 @@ class _State:
         except Exception:
             # 本家が受け付けるテンプレートを拒否した場合など。何も壊さないよう全ルートをワイルドカードにする。
             self.table = _ext.RouteTable([_WILDCARD] * len(self.routes))
+        self.find = self.table.first_match_from  # 毎回の属性参照を避ける
+        self.last = self.routes[-1] if self.routes else None
 
 
 def _make_app(original_app, mode):
@@ -89,15 +92,17 @@ def _make_app(original_app, mode):
     async def app(self, scope, receive, send):
         routes = self.routes
         typ = scope["type"]
-        if (typ == "http" or typ == "websocket") and len(routes) >= MIN_ROUTES:
-            st = self.__dict__.get("_mfastapi_state")
-            if st is None or st.n != len(routes) or st.routes[-1] is not routes[-1]:
-                st = self.__dict__["_mfastapi_state"] = _State(routes)
+        n = len(routes)
+        if n >= MIN_ROUTES and (typ == "http" or typ == "websocket"):
+            d = self.__dict__
+            st = d.get("_mfastapi_state")
+            if st is None or st.n != n or st.last is not routes[-1]:
+                st = d["_mfastapi_state"] = _State(routes)
             if "router" not in scope:
                 scope["router"] = self
             # get_route_path と同じ結果(root_pathが空なら scope["path"] そのもの)
             path = scope["path"] if not scope.get("root_path") else get_route_path(scope)
-            find = st.table.first_match_from
+            find = st.find
             try:
                 i = find(path, 0)
             except Exception:  # バックトラック上限・エンコード不能など: 何も絞り込まず本家に任せる
@@ -117,7 +122,7 @@ def _make_app(original_app, mode):
             while i >= 0:
                 route = routes[i]
                 match, child_scope = route.matches(scope)
-                if match == Match.FULL:
+                if match is _FULL:
                     if mode == 1:
                         scope["route"] = route
                         scope.update(child_scope)
