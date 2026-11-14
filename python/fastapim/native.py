@@ -19,8 +19,8 @@ def _candidates():
     if env:
         yield env
     here = os.path.dirname(os.path.abspath(__file__))
-    names = ("fastapim.dll", "libfastapim.dll") if os.name == "nt" else (
-        ("libfastapim.dylib", "libfastapim.so") if sys.platform == "darwin" else ("libfastapim.so",)
+    names = ("fastapim.dll", "libfastapim.dll", "fastapim_core.dll") if os.name == "nt" else (
+        ("libfastapim.dylib", "libfastapim.so", "libfastapim_core.dylib") if sys.platform == "darwin" else ("libfastapim.so", "libfastapim_core.so")
     )
     for name in names:
         yield os.path.join(here, name)

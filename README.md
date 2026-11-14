@@ -5,6 +5,13 @@
 > **Rename (2026-11-14, breaking change)**: the GitHub repository was renamed from `mfastapi` to **`FastAPIM`**, and the Python package / import name from `mfastapi` to **`fastapim`**. Switch to `pip install fastapim` / `import fastapim`. Extension modules are now `fastapim_cext` / `fastapim_native` / `fastapim_handlers`, the kill-switch environment variable is `FASTAPIM_DISABLE`, and the C ABI functions are `fastapim_*`. The old GitHub URL redirects. A package named `mfastapi` was never published to PyPI. On Windows, build with the unofficial [MojoW](https://github.com/aon-co-jp/MojoW) bridge (runs the real Mojo in WSL).
 >
 > **互換性 / Compatibility**: FastAPIとFastAPIMの互換性は、実際のFastAPI(uvicorn)との差分テストで継続的に検証する(下記「互換性の確認方法と範囲」)。段階B・Cは検証済みの範囲(パス/クエリのint・str、422、OpenAPI)で応答が一致する。未対応の機能(Depends・Pydanticモデル本文・ミドルウェア等)は互換外として明記する。 / FastAPI-vs-FastAPIM compatibility is verified by differential tests against real FastAPI on uvicorn (see "互換性の確認方法と範囲" below). Stages B/C match FastAPI on the verified scope (int/str path and query params, 422 errors, OpenAPI); unsupported features (Depends, Pydantic body models, middleware) are explicitly out of scope.
+>
+> **アーキテクチャ(2026-11-14決定) / Architecture**: 見た目はPython構文(FastAPIと同じAPI)、中身・高速化・セキュリティは**Rust**。C++は採用しない。
+> Python-looking surface (FastAPI's API); internals, speed and security in **Rust**. No C++.
+> - `rust/fastapim-core`: **Rust製コア**。Starlette互換のパス照合とコンパイル済みルート表(C版と同じC ABIのまま差し替え可能、`libfastapim_core.so`)、Pydantic互換の整数解析・クエリ値の取り出し(長さ上限・i64範囲・安全なRust、`unsafe`はC ABIの薄い層だけ)。
+> - 検証: ルート表はStarletteと48,000件で不一致0、速度はC版と同等(約1.4〜1.7µs/照合、`scripts/test-rust-table-wsl.sh`)。整数解析はPydanticと5,158件、クエリはparse_qslと15,030件で不一致0(`scripts/test-rust-wsl.sh`)。Pydanticの癖("0-5"が-5になる等)も再現した。
+> - 以前のC版(`c/`)とMojo版(`mojo/`)は参照実装・比較用に残す(Mojoの段階B・Cサーバーは実験的)。Rust版が既定の方向。 / The C (`c/`) and Mojo (`mojo/`) versions stay as reference/comparison implementations; Rust is the default direction.
+> - 未了 / Not yet: Rustコアをwheelに同梱するCI、`accelerate`の既定バックエンドをRustにする切替、HTTPサーバー層のRust化。
 
 Mojo Support for Python's FastAPI. (FastAPI の Python + Rust + C++ 互換、Mojo 対応)
 
