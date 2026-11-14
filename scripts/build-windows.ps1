@@ -27,6 +27,8 @@ if (-not (Test-Path "$venv\Scripts\python.exe")) {
 $env:MFASTAPI_LIB = Join-Path $out "x64\mfastapi.dll"
 $env:PYTHONPATH = Join-Path $root "python"
 $env:PYTHONIOENCODING = "utf-8"
+$env:PYTHONWARNINGS = "ignore"
+$ErrorActionPreference = "Continue"  # Pythonの警告(stderr)でStopしない。失敗は終了コードで判定
 & "$venv\Scripts\python.exe" (Join-Path $root "bench\diff_ctable.py") 5000
 if ($LASTEXITCODE -ne 0) { throw "ctable differential failed" }
 & "$venv\Scripts\python.exe" (Join-Path $root "tests\accel\test_router_equiv.py")

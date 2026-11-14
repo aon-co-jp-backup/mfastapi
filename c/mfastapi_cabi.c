@@ -165,19 +165,40 @@ MFASTAPI_EXPORT int32_t mfastapi_route_first_match(const uint8_t *tpls, int64_t 
 typedef struct {
     uint8_t *tpl; int64_t tl;
     int64_t lead; /* 先頭リテラルの長さ */
+    int32_t next; /* 同じtrie節に属する次のルート番号(昇順、なければ-1) */
 } mf_route;
+
+typedef struct { int32_t child, sib, head, tail; uint8_t byte; } mf_node;
 
 typedef struct {
     mf_route *r; int32_t n, cap;
+    mf_node *nodes; int32_t nn, ncap; /* 先頭リテラルのバイトtrie。節0が根 */
 } mf_table;
 
-MFASTAPI_EXPORT void *mfastapi_table_new(void) { return calloc(1, sizeof(mf_table)); }
+static int32_t t_new_node(mf_table *t, uint8_t b) {
+    if (t->nn == t->ncap) {
+        int32_t nc = t->ncap ? t->ncap * 2 : 32;
+        mf_node *q = (mf_node *)realloc(t->nodes, (size_t)nc * sizeof(mf_node));
+        if (!q) return -1;
+        t->nodes = q; t->ncap = nc;
+    }
+    t->nodes[t->nn].child = t->nodes[t->nn].sib = t->nodes[t->nn].head = t->nodes[t->nn].tail = -1;
+    t->nodes[t->nn].byte = b;
+    return t->nn++;
+}
+
+MFASTAPI_EXPORT void *mfastapi_table_new(void) {
+    mf_table *t = (mf_table *)calloc(1, sizeof(mf_table));
+    if (t && t_new_node(t, 0) < 0) { free(t); return NULL; }
+    return t;
+}
 
 MFASTAPI_EXPORT void mfastapi_table_free(void *h) {
     mf_table *t = (mf_table *)h;
     if (!t) return;
     for (int32_t i = 0; i < t->n; i++) free(t->r[i].tpl);
     free(t->r);
+    free(t->nodes);
     free(t);
 }
 
@@ -211,7 +232,24 @@ MFASTAPI_EXPORT int32_t mfastapi_table_add(void *h, const uint8_t *tpl, int64_t 
     r->tpl = (uint8_t *)malloc(tl > 0 ? (size_t)tl : 1);
     if (!r->tpl) return -2;
     if (tl > 0) memcpy(r->tpl, tpl, (size_t)tl);
-    r->tl = tl; r->lead = lead;
+    r->tl = tl; r->lead = lead; r->next = -1;
+    {   /* 先頭リテラルをtrieへ登録(リテラルの終点の節にルートを昇順で連結) */
+        int32_t node = 0;
+        for (int64_t k = 0; k < lead; k++) {
+            int32_t ch = t->nodes[node].child;
+            while (ch >= 0 && t->nodes[ch].byte != tpl[k]) ch = t->nodes[ch].sib;
+            if (ch < 0) {
+                ch = t_new_node(t, tpl[k]);
+                if (ch < 0) { free(r->tpl); return -2; }
+                t->nodes[ch].sib = t->nodes[node].child;
+                t->nodes[node].child = ch;
+            }
+            node = ch;
+        }
+        if (t->nodes[node].tail >= 0) t->r[t->nodes[node].tail].next = t->n;
+        else t->nodes[node].head = t->n;
+        t->nodes[node].tail = t->n;
+    }
     t->n++;
     return 0;
 }
@@ -220,15 +258,29 @@ MFASTAPI_EXPORT int32_t mfastapi_table_first_match_from(void *h, const uint8_t *
     const mf_table *t = (const mf_table *)h;
     if (!t || pl < 0) return -1;
     if (start < 0) start = 0;
-    for (int32_t k = start; k < t->n; k++) {
-        const mf_route *r = &t->r[k];
-        ctx c;
-        int m;
-        if (r->lead > pl || (r->lead > 0 && memcmp(r->tpl, path, (size_t)r->lead) != 0)) continue;
-        c.t = r->tpl; c.tl = r->tl; c.p = path; c.pl = pl; c.steps = 0;
-        m = match_from(&c, r->lead, r->lead);
-        if (m == 1) return k;
-        if (m == -2) return -3;
+    {   /* パスをtrieに沿って辿り、通過した各節(=先頭リテラルがパスの接頭辞になっているルート群)から最小の一致番号を探す */
+        int32_t node = 0, best = 0x7fffffff;
+        int64_t pos = 0;
+        for (;;) {
+            for (int32_t k = t->nodes[node].head; k >= 0 && k < best; k = t->r[k].next) {
+                const mf_route *r;
+                ctx c;
+                int m;
+                if (k < start) continue;
+                r = &t->r[k];
+                c.t = r->tpl; c.tl = r->tl; c.p = path; c.pl = pl; c.steps = 0;
+                m = match_from(&c, r->lead, r->lead);
+                if (m == 1) { best = k; break; }
+                if (m == -2) return -3;
+            }
+            if (pos >= pl) break;
+            {
+                int32_t ch = t->nodes[node].child;
+                while (ch >= 0 && t->nodes[ch].byte != path[pos]) ch = t->nodes[ch].sib;
+                if (ch < 0) break;
+                node = ch; pos++;
+            }
+        }
+        return best == 0x7fffffff ? -1 : best;
     }
-    return -1;
 }
