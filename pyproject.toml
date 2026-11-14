@@ -17,3 +17,4 @@ Homepage = "https://github.com/aon-co-jp/mfastapi"
 [tool.setuptools]
 package-dir = { "" = "python" }
 packages = ["mfastapi"]
+py-modules = ["mfastapi_cext_selftest"]

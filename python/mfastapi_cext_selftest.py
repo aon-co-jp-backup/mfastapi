@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""依存なしのスモークテスト(iOS/Androidなど、fastapiが入らない環境で mfastapi_cext を確認する)。"""
+"""C拡張 mfastapi_cext の依存なしセルフテスト。実行: python -m mfastapi_cext_selftest(iOS/Androidなど、fastapiが入らない環境用)。"""
 import mfastapi_cext as c
 
 t = c.RouteTable(["/a/{x}", "/items/{id:int}", "/files/{p:path}", "/u/{u:uuid}", "/m/{f:float}", "/あ/{n}"])
