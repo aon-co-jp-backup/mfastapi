@@ -11,7 +11,9 @@
 > - `rust/fastapim-core`: **Rust製コア**。Starlette互換のパス照合とコンパイル済みルート表(C版と同じC ABIのまま差し替え可能、`libfastapim_core.so`)、Pydantic互換の整数解析・クエリ値の取り出し(長さ上限・i64範囲・安全なRust、`unsafe`はC ABIの薄い層だけ)。
 > - 検証: ルート表はStarletteと48,000件で不一致0、速度はC版と同等(約1.4〜1.7µs/照合、`scripts/test-rust-table-wsl.sh`)。整数解析はPydanticと5,158件、クエリはparse_qslと15,030件で不一致0(`scripts/test-rust-wsl.sh`)。Pydanticの癖("0-5"が-5になる等)も再現した。
 > - 以前のC版(`c/`)とMojo版(`mojo/`)は参照実装・比較用に残す(Mojoの段階B・Cサーバーは実験的)。Rust版が既定の方向。 / The C (`c/`) and Mojo (`mojo/`) versions stay as reference/comparison implementations; Rust is the default direction.
-> - 未了 / Not yet: Rustコアをwheelに同梱するCI、`accelerate`の既定バックエンドをRustにする切替、HTTPサーバー層のRust化。
+> - **Rust拡張 `fastapim_rust`(PyO3)が `accelerate` の既定バックエンド**(`fastapim.backend()=="rust"`)。`pip install fastapim` で入り(setuptools-rust、ビルドできない環境では拡張なしで本家のまま動く)、Linux x86_64/ARM・Windows(64bit)・macOS(Intel/Apple silicon)のwheelで、バックエンドがrustであることと等価性テストをCIで確認する(Windows 32bitは対象外にした)。
+> - **互換性の継続的な保証**: `.github/workflows/compat.yml` が push・PR のたびに Python 3.9/3.12/3.14 で、StarletteおよびFastAPIとの等価性テスト、Rustコアの単体テスト、Pydantic・`parse_qsl` との差分ファジングを実行し、不一致があれば失敗する。保証の範囲はルーティング(パス照合・パラメータ・405・リダイレクト・WebSocket)と、整数/クエリ値の解析。範囲外は上記の注記のとおり。
+> - 未了 / Not yet: HTTPサーバー層のRust化、Windows 32bitのwheel。
 
 Mojo Support for Python's FastAPI. (FastAPI の Python + Rust + C++ 互換、Mojo 対応)
 
