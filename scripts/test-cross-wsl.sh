@@ -15,3 +15,11 @@ for lib in libmfastapi.so libmfastapi_c.so; do
 done
 echo "[parity Mojo vs C, Python 3]"; python "$T/parity.py" "$B/libmfastapi.so" "$B/libmfastapi_c.so"
 echo "[parity Mojo vs C, Python 2.7]"; "$HOME/py27/bin/python2.7" "$T/parity.py" "$B/libmfastapi.so" "$B/libmfastapi_c.so"
+for lib in libmfastapi.so libmfastapi_c.so; do
+  echo "[Starlette differential, $lib]"
+  MFASTAPI_LIB="$B/$lib" uv run --no-project --python 3.12 --with starlette python /mnt/f/mfastapi/bench/diff_starlette.py 300000 | grep -E "cases|agree|e\.g|typed|param|other|invalid"
+done
+for lib in libmfastapi.so libmfastapi_c.so; do
+  echo "[bench $lib]"
+  MFASTAPI_LIB="$B/$lib" uv run --no-project --python 3.12 --with starlette python /mnt/f/mfastapi/bench/bench_match.py
+done

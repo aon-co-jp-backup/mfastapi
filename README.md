@@ -8,7 +8,7 @@ Mojo Support for Python's FastAPI. (FastAPI の Python + Rust + C++ 互換、Moj
 - `mfastapi.collect_ir(app)`: FastAPIアプリのルート表(IR、JSON直列化可)を取り出す。`include_router`、`Depends`の再帰、path/query/header/cookie/bodyに対応。
 - `mfastapi.ir_to_openapi_skeleton(ir)` と `mfastapi.diff_openapi(openapi, skeleton)`: 本家 `/openapi.json` との互換差分テスト(パス・メソッド・パラメータ・本文有無)。
 - `mojo/mfastapi_native.mojo`: `PythonModuleBuilder`による最小のMojo拡張(`add`、パス照合`path_matches`)。WSL上のMojo 1.3.0.dev2026111316でビルドし、Pythonから呼べることをpytest 2件で確認。
-- 未実装: Rustサーバー、段階B/C、スキーマ本体(型)の比較。`path_matches`はStarletteの照合との突き合わせ・性能実測がまだ(型指定`{x:int}`や`{p:path}`も未対応)。
+- 未実装: Rustサーバー、段階B/C、スキーマ本体(型)の比較。`mfastapi_native.mojo`の`path_matches`は初期の簡易版でStarlette非互換(互換版は下記のC ABI版)。
 
 ## テスト
 ```bash
@@ -56,3 +56,24 @@ wsl -d Ubuntu -- bash /mnt/f/mfastapi/scripts/test-cross-wsl.sh   # Linux: C版+
 bash scripts/build-android.sh                                      # Android NDK (4 ABI、build/android/)
 ```
 注意: ここでの「対応」は**ネイティブ関数(パス照合など)の呼び出し**までで、FastAPI本体(Python 3専用)をAndroid・iOSで動かすことは含まない。
+
+## Starletteとの突き合わせと性能(2026-11-14実測、Starlette 1.8.0)
+**調査(Starletteのソース)**: `compile_path()`はテンプレートを正規表現`^...$`にして`re.match`する。`{name}`/`{name:str}`=`[^/]+`、`:path`=`.*`、`:int`=`[0-9]+`、`:float`=`[0-9]+(\.[0-9]+)?`、`:uuid`=8-4-4-4-12の16進(`-`省略可)。パラメータは区間の途中にも置け、`re`と同じ貪欲+バックトラック。不正な`{`はリテラル、未知の型名は`assert`で拒否。`$`は末尾の改行1つ手前でも一致する。
+
+**差分ファジング**(`bench/diff_starlette.py`: ランダムなテンプレート×パス、`starlette.routing.compile_path`を正解とする):
+- 最初の実装(区間単位のみ): 比較86,612件中 **13,970件(16%)が不一致**(型指定・区間内パラメータ・波括弧)。
+- Starlette互換に作り直し後(C版・Mojo版とも): 25.9万件×3回の乱数で**不一致0**。途中で見つかった差: Starletteは**コードポイント単位**なので、UTF-8の途中でパラメータを区切ると誤一致(`/{y}{x}`と`/٣`)→境界で区切らないよう修正。
+- 未対応/差の残る点: パラメータ名の重複(Starletteは`ValueError`)の検出、ホスト用テンプレート(`/`で始まらない)、Starletteの独自コンバータ登録。バックトラック爆発は上限(20万ステップ)で`-2`(Pythonでは`RuntimeError`)にして断念する(Starletteの`re`は上限なし)。
+
+**性能**(`bench/bench_match.py`、Python 3.12・WSL Ubuntu、1回の探索あたりのns。Starlette=コンパイル済み正規表現を順に`match`):
+
+| ルート数 | 当たる位置 | Starlette | ネイティブ1件ずつ | ネイティブ一括(C版) | 一括(Mojo版) |
+|---|---|---|---|---|---|
+| 10 | 先頭 | 483 | 1700 | 1435 (0.3倍) | 1478 (0.3倍) |
+| 50 | 末尾 | 11,957 | 85,363 | 2,975 (4.0倍) | 3,458 (3.4倍) |
+| 200 | 末尾/外れ | 46,727 / 44,411 | 343,921 / 332,701 | 6,732 / 5,831 (7.6倍) | 10,264 / 9,399 (4.4倍) |
+
+- **結論(正直に)**: 照合の中身そのものは速い(C版で約22ns/ルート、Starletteは約220ns/ルート=約10倍)。しかし**ctypesの呼び出し固定費が約0.7〜0.9µs**あり、先頭付近で当たる探索や1件ずつの呼び出しでは**Starletteより遅い**(0.3倍)。得をするのは、ルートが多く(≥約30)深く探す場合の**一括呼び出し**(`route_first_match`)で3〜8倍。
+- 呼び出し固定費の実測(`bench/bench_overhead.py`、`add(2,3)`): 純Python演算25ns / ctypes 735〜916ns / **MojoのPythonModuleBuilder拡張 141ns**。→ 先頭ヒットでもStarlette(約480ns)に勝つには、一括照合を拡張モジュール版(Python 3専用)で提供するのが筋(未実装)。ctypes版(Python 2/他OS)は大きなルート表向け。
+- Mojo版はC版より約1.5〜2倍遅い(構造体経由の読み出し等、最適化は未着手)。測定はこの1台・Linux(WSL)のみ。Windows/Android/macOSの速度は未測定。
+- 本物のStarletteは照合の後に`scope`の更新やパラメータ変換(`convert`)も行うため、実アプリでの全体の速度向上はこの表より小さい。

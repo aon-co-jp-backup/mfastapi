@@ -47,6 +47,8 @@ def load(path=None):
         lib.mfastapi_add.argtypes = [ctypes.c_int64, ctypes.c_int64]
         lib.mfastapi_path_matches.restype = ctypes.c_int32
         lib.mfastapi_path_matches.argtypes = [ctypes.c_char_p, ctypes.c_int64, ctypes.c_char_p, ctypes.c_int64]
+        lib.mfastapi_route_first_match.restype = ctypes.c_int32
+        lib.mfastapi_route_first_match.argtypes = [ctypes.c_char_p, ctypes.c_int64, ctypes.c_char_p, ctypes.c_int64]
         _lib = lib
         return lib
     raise OSError("mfastapi native library not found: " + "; ".join(errors))
@@ -76,5 +78,31 @@ def add(a, b):
 
 
 def path_matches(template, path):
+    """Starlette互換のパス照合。未知の型名は ValueError、バックトラック上限は RuntimeError。"""
     t, p = _bytes(template), _bytes(path)
-    return bool(_get().mfastapi_path_matches(t, len(t), p, len(p)))
+    r = _get().mfastapi_path_matches(t, len(t), p, len(p))
+    if r == -1:
+        raise ValueError("unknown path convertor in template: %r" % (template,))
+    if r == -2:
+        raise RuntimeError("path matching gave up (backtracking budget)")
+    return r == 1
+
+
+def pack_templates(templates):
+    """route_first_matchへ渡す表(テンプレートを改行で連結)。ルート登録時に1回だけ作る。"""
+    items = [_bytes(t) for t in templates]
+    for t in items:
+        if b"\n" in t:
+            raise ValueError("template must not contain a newline")
+    return b"\n".join(items)
+
+
+def route_first_match(packed, path):
+    """pack_templatesの結果に対し、最初に一致したテンプレートの番号を返す(なければ -1)。"""
+    p = _bytes(path)
+    r = _get().mfastapi_route_first_match(packed, len(packed), p, len(p))
+    if r == -2:
+        raise ValueError("unknown path convertor in a template")
+    if r == -3:
+        raise RuntimeError("path matching gave up (backtracking budget)")
+    return r

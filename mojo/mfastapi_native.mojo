@@ -1,4 +1,5 @@
 """Minimal mfastapi native extension, imported from Python as `mfastapi_native`."""
+# 注意: ここのpath_matchesは初期の簡易版(区間単位のみ)で、Starlette互換ではない。互換版は mfastapi_cabi.mojo。
 # ホットパス候補: ルート表のパス照合(`/v1/items/{item_id}` と `/v1/items/42`)。
 from std.python import PythonObject
 from std.python.bindings import PythonModuleBuilder
