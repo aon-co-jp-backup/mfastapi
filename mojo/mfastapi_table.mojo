@@ -15,6 +15,7 @@ from mfastapi_match import (
 
 comptime IPtr = Pointer[Int32, MutUntrackedOrigin]
 comptime MAX_PARAMS = 16
+comptime LINEAR_MAX = 8
 comptime LIT = -1  # トークン種別: リテラル(それ以外はK_*)
 
 
@@ -31,6 +32,16 @@ struct RouteTable(Movable, Writable):
     var pbase: List[Int32]
     var pcount: List[Int32]
     var caps: List[Int32]  # 直近の照合で得た [開始,終端] の並び(GILの下で使い回す)
+    # 先頭リテラルのtrie。ノード0が根。子は「最初の子+次の兄弟」の連結リスト。
+    var t_child: List[Int32]
+    var t_next: List[Int32]
+    var t_byte: List[UInt8]
+    var t_routes: List[List[Int32]]  # 構築中: このノードで先頭リテラルが終わるルート番号(昇順)
+    var t_rstart: List[Int32]  # 凍結後: rlist内の開始位置
+    var t_rlen: List[Int32]
+    var rlist: List[Int32]
+    var frozen: Bool
+    var bcaps: List[Int32]  # 最終的に採用したルートのキャプチャ(後続の試行で上書きされないよう退避)
 
     def __init__(out self):
         self.ops = List[Int32]()
@@ -43,9 +54,49 @@ struct RouteTable(Movable, Writable):
         self.pbase = List[Int32]()
         self.pcount = List[Int32]()
         self.caps = List[Int32](length=2 * MAX_PARAMS, fill=0)
+        self.t_child = List[Int32]()
+        self.t_next = List[Int32]()
+        self.t_byte = List[UInt8]()
+        self.t_routes = List[List[Int32]]()
+        self.t_rstart = List[Int32]()
+        self.t_rlen = List[Int32]()
+        self.rlist = List[Int32]()
+        self.frozen = False
+        self.bcaps = List[Int32](length=2 * MAX_PARAMS, fill=0)
+        _ = self._new_node(0)  # 根
 
     def write_to(self, mut writer: Some[Writer]):
         t"RouteTable({self.count} routes)".write_to(writer)
+
+    def _new_node(mut self, b: UInt8) -> Int:
+        self.t_child.append(-1)
+        self.t_next.append(-1)
+        self.t_byte.append(b)
+        self.t_routes.append(List[Int32]())
+        return len(self.t_byte) - 1
+
+    def _trie_insert(mut self, route: Int, off: Int, ln: Int):
+        var node = 0
+        for k in range(ln):
+            var b = self.lits[off + k]
+            var ch = Int(self.t_child[node])
+            while ch >= 0 and self.t_byte[ch] != b:
+                ch = Int(self.t_next[ch])
+            if ch < 0:
+                ch = self._new_node(b)
+                self.t_next[ch] = self.t_child[node]
+                self.t_child[node] = Int32(ch)
+            node = ch
+        self.t_routes[node].append(Int32(route))
+
+    def freeze(mut self):
+        """trieのルート番号リストを1本の配列に平坦化する(全ルート登録後に1回呼ぶ)。"""
+        for i in range(len(self.t_routes)):
+            self.t_rstart.append(Int32(len(self.rlist)))
+            self.t_rlen.append(Int32(len(self.t_routes[i])))
+            for j in range(len(self.t_routes[i])):
+                self.rlist.append(self.t_routes[i][j])
+        self.frozen = True
 
     def add(mut self, tpl: String) raises:
         var c = Ctx(
@@ -100,6 +151,12 @@ struct RouteTable(Movable, Writable):
             n += 1
         self.ntok.append(Int32(n))
         self.pcount.append(Int32(np))
+        # 先頭がリテラルならその文字列で、なければ根に登録する
+        var b0 = Int(self.base[self.count])
+        if n > 0 and Int(self.ops[b0]) == LIT:
+            self._trie_insert(self.count, Int(self.ops[b0 + 1]), Int(self.ops[b0 + 2]))
+        else:
+            self.t_routes[0].append(Int32(self.count))
         self.count += 1
 
 
@@ -221,12 +278,20 @@ def match_t(
     return 0
 
 
+def save_caps(t: RouteTable, r: Int):
+    var n = 2 * Int(t.pcount[r])
+    var src = t.caps.unsafe_ptr()
+    var dst = rebind[IPtr](t.bcaps.unsafe_ptr())
+    for i in range(n):
+        dst.unsafe_offset(i)[] = src.unsafe_offset(i)[]
+
+
 # 戻り値: 最初に一致したルート番号 / -1=なし / -3=バックトラック上限
-def first_match(t: RouteTable, p: FPtr, pl: Int) -> Int:
+def first_match_linear_from(t: RouteTable, p: FPtr, pl: Int, start: Int) -> Int:
     var ops = rebind[IPtr](t.ops.unsafe_ptr())
     var lits = rebind[FPtr](t.lits.unsafe_ptr())
     var caps = rebind[IPtr](t.caps.unsafe_ptr())
-    for r in range(t.count):
+    for r in range(start, t.count):
         var base = Int(t.base[r])
         var nt = Int(t.ntok[r])
         var ti = 0
@@ -249,7 +314,70 @@ def first_match(t: RouteTable, p: FPtr, pl: Int) -> Int:
         var steps = 0
         var m = match_t(ops, lits, caps, base, nt, ti, p, pl, pi, steps)
         if m == 1:
+            save_caps(t, r)
             return r
         if m == -2:
             return -3
     return -1
+
+
+# trie版: 経路上のノードに載っている候補だけを、番号の若い順に試す(最小番号を返す=線形版と同じ結果)
+def first_match_from(t: RouteTable, p: FPtr, pl: Int, start: Int) -> Int:
+    # ルートが少ないうちは線形のほうが速い(実測で10ルート前後が分かれ目)
+    if t.count <= LINEAR_MAX:
+        return first_match_linear_from(t, p, pl, start)
+    var ops = rebind[IPtr](t.ops.unsafe_ptr())
+    var lits = rebind[FPtr](t.lits.unsafe_ptr())
+    var caps = rebind[IPtr](t.caps.unsafe_ptr())
+    var rstart = t.t_rstart.unsafe_ptr()
+    var rlen = t.t_rlen.unsafe_ptr()
+    var rl = t.rlist.unsafe_ptr()
+    var tchild = t.t_child.unsafe_ptr()
+    var tnext = t.t_next.unsafe_ptr()
+    var tbyte = t.t_byte.unsafe_ptr()
+    var rbase = t.base.unsafe_ptr()
+    var rntok = t.ntok.unsafe_ptr()
+    var best = 1 << 30
+    var node = 0
+    var pos = 0
+    while True:
+        var n_here = Int(rlen.unsafe_offset(node)[])
+        var st = Int(rstart.unsafe_offset(node)[])
+        for q in range(n_here):
+            var r = Int(rl.unsafe_offset(st + q)[])
+            if r >= best:
+                break
+            if r < start:
+                continue
+            var base = Int(rbase.unsafe_offset(r)[])
+            var nt = Int(rntok.unsafe_offset(r)[])
+            var ti = 0
+            if nt > 0 and Int(ops.unsafe_offset(base)[]) == LIT:
+                ti = 1  # 先頭リテラルは木をたどる間に照合済み(pos バイト)
+            var steps = 0
+            var m = match_t(ops, lits, caps, base, nt, ti, p, pl, pos, steps)
+            if m == 1:
+                best = r
+                save_caps(t, r)
+                break
+            if m == -2:
+                return -3
+        if pos >= pl:
+            break
+        var ch = Int(tchild.unsafe_offset(node)[])
+        var b = p.unsafe_offset(pos)[]
+        while ch >= 0 and tbyte.unsafe_offset(ch)[] != b:
+            ch = Int(tnext.unsafe_offset(ch)[])
+        if ch < 0:
+            break
+        node = ch
+        pos += 1
+    return best if best < (1 << 30) else -1
+
+
+def first_match(t: RouteTable, p: FPtr, pl: Int) -> Int:
+    return first_match_from(t, p, pl, 0)
+
+
+def first_match_linear(t: RouteTable, p: FPtr, pl: Int) -> Int:
+    return first_match_linear_from(t, p, pl, 0)

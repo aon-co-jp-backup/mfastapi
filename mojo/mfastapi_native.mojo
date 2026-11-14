@@ -4,7 +4,7 @@ from std.python.bindings import PythonModuleBuilder
 from std.os import abort
 
 from mfastapi_match import Ctx, FPtr, K_FLOAT, K_INT, K_UUID, match_from
-from mfastapi_table import RouteTable, first_match
+from mfastapi_table import RouteTable, first_match, first_match_from, first_match_linear
 
 
 @export
@@ -18,6 +18,8 @@ def PyInit_mfastapi_native() abi("C") -> PythonObject:
             .def_py_init[PyRouteTable.py_init]()
             .def_method[PyRouteTable.first_match]("first_match")
             .def_method[PyRouteTable.match]("match")
+            .def_method[PyRouteTable.first_match_from]("first_match_from")
+            .def_method[PyRouteTable.first_match_linear]("first_match_linear")
             .def_method[PyRouteTable.size]("size")
         )
         return m.finalize()
@@ -85,6 +87,7 @@ struct PyRouteTable(Movable, Writable):
         var lst = args[0]
         for i in range(len(lst)):
             t.add(String(py=lst[i]))
+        t.freeze()
         self = Self(t^)
 
     @staticmethod
@@ -95,6 +98,34 @@ struct PyRouteTable(Movable, Writable):
         var self_ptr = py_self.downcast_value_ptr[Self]()
         var p = utf8_of(path)
         var r = first_match(
+            self_ptr[].table, rebind[FPtr](p.unsafe_ptr()), p.byte_length()
+        )
+        if r == -3:
+            raise Error("path matching gave up (backtracking budget)")
+        return PythonObject(r)
+
+    @staticmethod
+    def first_match_from(
+        py_self: PythonObject, path: PythonObject, start: PythonObject
+    ) raises -> PythonObject:
+        """Index (>= start) of the first template matching `path`, or -1."""
+        var self_ptr = py_self.downcast_value_ptr[Self]()
+        var p = utf8_of(path)
+        var r = first_match_from(
+            self_ptr[].table, rebind[FPtr](p.unsafe_ptr()), p.byte_length(), Int(py=start)
+        )
+        if r == -3:
+            raise Error("path matching gave up (backtracking budget)")
+        return PythonObject(r)
+
+    @staticmethod
+    def first_match_linear(
+        py_self: PythonObject, path: PythonObject
+    ) raises -> PythonObject:
+        """Same result as first_match, using the old linear scan (for verification and benchmarks)."""
+        var self_ptr = py_self.downcast_value_ptr[Self]()
+        var p = utf8_of(path)
+        var r = first_match_linear(
             self_ptr[].table, rebind[FPtr](p.unsafe_ptr()), p.byte_length()
         )
         if r == -3:
@@ -119,8 +150,8 @@ struct PyRouteTable(Movable, Writable):
         var params = Python.dict()
         var pb = Int(t.pbase[r])
         for j in range(Int(t.pcount[r])):
-            var s0 = Int(t.caps[2 * j])
-            var e0 = Int(t.caps[2 * j + 1])
+            var s0 = Int(t.bcaps[2 * j])
+            var e0 = Int(t.bcaps[2 * j + 1])
             var kind = Int(t.pkinds[pb + j])
             var val: PythonObject
             if kind == K_INT and e0 - s0 <= 18:

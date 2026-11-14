@@ -33,7 +33,8 @@ bad = 0
 single = 0
 for _ in range(N):
     templates = []
-    while len(templates) < rng.randint(1, 12):
+    target = rng.choice([1, 3, 12, 12, 60, 150])
+    while len(templates) < target:
         t = tpl()
         try:
             compile_path(t)
@@ -53,6 +54,9 @@ for _ in range(N):
         p = path()
         want = next((i for i, rx in enumerate(rxs) if rx.match(p)), -1)
         got = table.first_match(p)
+        if table.first_match_linear(p) != got:
+            bad += 1
+            print("MISMATCH trie-vs-linear", ascii(templates), ascii(p))
         if got != want:
             bad += 1
             print("MISMATCH table", ascii(templates), ascii(p), want, got)
@@ -68,6 +72,12 @@ for _ in range(N):
         if not ok:
             bad += 1
             print("MISMATCH params", ascii(templates), ascii(p), want, got_m)
+        # first_match_from(path, start): start以降で最初に一致する番号
+        st = rng.randrange(len(templates) + 1)
+        want_from = next((i for i in range(st, len(rxs)) if rxs[i].match(p)), -1)
+        if table.first_match_from(p, st) != want_from:
+            bad += 1
+            print("MISMATCH from", ascii(templates), ascii(p), st, want_from, table.first_match_from(p, st))
         i = rng.randrange(len(templates))
         if ext.path_matches(templates[i], p) != (rxs[i].match(p) is not None):
             bad += 1
