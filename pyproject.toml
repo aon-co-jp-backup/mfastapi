@@ -9,10 +9,10 @@ description = "Mojo/C accelerated route matching and IR tooling for FastAPI/Star
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["starlette"]
+license = { text = "MIT" }
 
 [project.optional-dependencies]
 fastapi = ["fastapi"]
-license = { text = "MIT" }
 
 [project.urls]
 Homepage = "https://github.com/aon-co-jp/mfastapi"
