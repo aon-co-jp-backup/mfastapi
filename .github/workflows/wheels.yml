@@ -14,12 +14,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-13, macos-latest]
+        os: [ubuntu-latest, ubuntu-24.04-arm, windows-latest, macos-15-intel, macos-latest]
     steps:
       - uses: actions/checkout@v4
       - uses: pypa/cibuildwheel@v2.23.3
         env:
-          CIBW_SKIP: "pp* *-musllinux_* cp38-*"
+          CIBW_SKIP: "pp* *-musllinux_* *-manylinux_i686 cp38-*"
           CIBW_TEST_REQUIRES: "fastapi httpx"
           CIBW_TEST_COMMAND: "python {project}/tests/accel/test_router_equiv.py"
       - uses: actions/upload-artifact@v4
