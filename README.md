@@ -249,4 +249,4 @@ Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...
 - **422**: `{"detail":[{"type":"int_parsing","loc":["path","n"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"abc"}]}`、必須欠落は `type:"missing"`(`input:null`)。
 - **`/openapi.json`**(OpenAPI 3.1、parameters・operationId・422・`HTTPValidationError`/`ValidationError`)と **`/docs`**(Swagger UI)。
 - 実測(WSL、`scripts/test-server-compat-wsl.sh`=段階C、`scripts/test-server-b-compat-wsl.sh`=段階B): 応答・422本文は C 17件 / B 12件、OpenAPIは C 3経路 / B 4経路で、FastAPIとの差異 0。
-- 既知の差: intは `[+-]数字` のみ受理(Pydanticは "5.0"・" 5 " 等も許容)、400の本文は `{"detail":"..."}`、404本文の形式は別、Swagger UIはCDN読み込み、段階Bの200スキーマは型付けなし、段階BはGILのため `num_workers=1`。
+- int解析はPydanticのlaxモードに合わせた("5.0"・" 5 "・"1_000"を受理、"5."・"1e1"・"1__0"は422。FastAPIと25件で一致)。既知の差: 18桁超(64bit)、400の本文は `{"detail":"..."}`、404本文の形式は別、Swagger UIはCDN読み込み、段階Bの200スキーマは型付けなし、段階BはGILのため `num_workers=1`。

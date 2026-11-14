@@ -60,7 +60,7 @@ CASES_B = [
     "/py/stats?csv=1,2,3.5", "/py/stats", "/fib/20", "/fib/x", "/fib/46", "/nope",
 ]
 CASES = CASES_B if MODE == "b" else [
-    "/fib/0", "/fib/20", "/fib/abc", "/fib/-3", "/fib/1.5", "/fib/%E3%81%82", "/fib/46",
+    "/fib/0", "/fib/20", "/fib/abc", "/fib/-3", "/fib/1.5", "/fib/%205%20", "/fib/5.0", "/fib/1_0", "/fib/1__0", "/fib/5.", "/fib/+7", "/fib/007", "/fib/1e1", "/fib/%E3%81%82", "/fib/46",
     "/primes", "/primes?n=100", "/primes?n=x", "/primes?n=", "/primes?n=%22q%22",
     "/words?text=hello%20big%20world", "/words?text=", "/words", "/words?text=%E6%97%A5%E6%9C%AC%20%E8%AA%9E",
     "/nope",

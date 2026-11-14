@@ -3,7 +3,7 @@
 Shared by server_b.mojo and server_c.mojo. Mirrors what FastAPI+Pydantic return so clients cannot tell the servers apart:
   - invalid int   -> 422 {"detail":[{"type":"int_parsing","loc":["path","n"],"msg":"Input should be a valid integer, unable to parse string as an integer","input":"abc"}]}
   - missing param -> 422 {"detail":[{"type":"missing","loc":["query","text"],"msg":"Field required","input":null}]}
-Known difference: only [+-]digits is accepted as an int (Pydantic lax mode also accepts "5.0", " 5 ", "1_000").
+int parsing follows Pydantic lax mode ("5.0", " 5 ", "1_000" accepted); only >18 digits differ (64-bit Int).
 """
 from flare.prelude import *
 from flare.http.form import urldecode
@@ -57,25 +57,50 @@ def html_response(body: String) -> Response:
 
 
 def parse_int(s: String) -> Optional[Int]:
-    """[+-]digits only (up to 18 digits)."""
-    var n = s.byte_length()
-    if n == 0:
-        return Optional[Int]()
-    var i = 0
-    var neg = False
+    """Pydantic lax-mode int from str: surrounding ASCII whitespace, [+-], digits with single "_" between digits,
+    optional ".000" fraction (zeros only). Up to 18 integer digits (Int is 64-bit)."""
     var bytes = s.as_bytes()
-    if bytes[0] == 43 or bytes[0] == 45:
-        neg = bytes[0] == 45
-        i = 1
-    if i >= n or n - i > 18:
+    var lo = 0
+    var hi = len(bytes)
+    while lo < hi and (bytes[lo] == 32 or (bytes[lo] >= 9 and bytes[lo] <= 13)):
+        lo += 1
+    while hi > lo and (bytes[hi - 1] == 32 or (bytes[hi - 1] >= 9 and bytes[hi - 1] <= 13)):
+        hi -= 1
+    if lo >= hi:
         return Optional[Int]()
-    var v = 0
-    while i < n:
-        var c = Int(bytes[i])
-        if c < 48 or c > 57:
-            return Optional[Int]()
-        v = v * 10 + (c - 48)
+    var i = lo
+    var neg = False
+    if bytes[i] == 43 or bytes[i] == 45:
+        neg = bytes[i] == 45
         i += 1
+    var v = 0
+    var digits = 0
+    var prev_us = False
+    var seen_digit = False
+    while i < hi:
+        var c = Int(bytes[i])
+        if c >= 48 and c <= 57:
+            v = v * 10 + (c - 48)
+            digits += 1
+            seen_digit = True
+            prev_us = False
+            if digits > 18:
+                return Optional[Int]()
+        elif c == 95 and seen_digit and not prev_us:
+            prev_us = True
+        else:
+            break
+        i += 1
+    if not seen_digit or prev_us:
+        return Optional[Int]()
+    if i < hi:
+        if bytes[i] != 46 or i + 1 >= hi:
+            return Optional[Int]()
+        i += 1
+        while i < hi:
+            if bytes[i] != 48:
+                return Optional[Int]()
+            i += 1
     return Optional[Int](-v if neg else v)
 
 
