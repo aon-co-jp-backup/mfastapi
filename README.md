@@ -227,3 +227,19 @@ Mojo拡張の関数にはシグネチャが無いため、`params`で宣言し�
 | 単語数(短文) | 749µs | 753µs | 1.0倍 |
 
 **正直な注意**: ①**計算が軽いエンドポイントでは効果が無い**(約750µsはFastAPIの固定費で、Mojoにしても変わらない)。効くのは1リクエストの計算が数ms以上のCPU負荷型。②Mojo関数の実行中は**GILを保持**するため、同じプロセスの他のPythonスレッドは止まる(長い計算は別ワーカー/プロセスで)。③`mean`のようにPythonのlistを渡す関数は、変換費用で得にならない場合がある(未測定)。④サンプル関数は動作確認用で、実アプリのロジックはこの形で自分で書く。⑤検証はLinux(WSL)のみ。
+
+## 段階B・C: Mojo(flare)がHTTPとルーティングを担当する(2026-11-14)
+Mojo製のネットワークスタック[flare](https://github.com/ehsanmok/flare)(MIT、HTTP/1.1・HTTP/2・HTTP/3・WebSocket・TLS、型付き抽出器、Router)を使い、**FastAPI/uvicornを通さずMojoだけでHTTPを受ける**サーバーを作った。flareはMojo 1.2.0(pixi経由、`scripts/setup-flare-wsl.sh`)で動かした(段階Aのuv版nightly 1.3.0.devとは別環境)。
+
+### 段階C: 純Mojoの型付きハンドラ(`mojo/server_c.mojo`、`scripts/build-server-c-wsl.sh`・`test-server-c-wsl.sh`)
+`GET /fib/:n`・`/primes?n=`・`/words?text=`・`/health`。Pythonはリクエスト経路に一切入らない。`PathInt`・`OptionalQueryInt`・`QueryStr`の型付き抽出器で、不正な値は**ハンドラ実行前に400**になる。
+- **応答の比較**(FastAPI+Mojo関数版と同じ要求): 正常系(fib・primes・words・health)の**本文とステータスは一致**。404も一致(本文の形式は異なる)。
+- **差異(正直に)**: ①型が合わない入力は、FastAPIが**422**+詳細JSON、純Mojo版は**400**+`Bad Request`(エラー形式の互換は未実装)。②`QueryStr`はパーセントデコードされないため、`urldecode`を自前で呼んでいる(最初は`%20`のまま数えて単語数が1になる不具合があり、修正した)。③OpenAPI・`/docs`はこのサーバーでは未提供(flareにOpenAPI出力があるが未接続)。
+- **速度**(逐次・keep-alive、1リクエストあたり、Python製クライアント込みのループバック): `/health` 純Mojo 320µs vs FastAPI 752µs、`/fib/10` 317µs vs 1,560µs(FastAPIはMojo関数でも固定費が大きい)。`/fib/30`・`/primes?n=100万`は計算が支配的で 5.2ms vs 5.8ms・9.0ms vs 12.5ms。クライアント側のオーバーヘッドが大きく、**サーバー単体の限界性能は未測定**(負荷ツール未使用)。
+
+### 段階B: Mojoが受け口、利用者のハンドラはPython(`mojo/server_b.mojo`、`examples/pyhandlers.py`、`scripts/build-server-b-wsl.sh`)
+Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...`のルートだけ、同じプロセスに埋め込んだPythonの関数(`pyhandlers.greet`・`fib`・`stats`)を境界越えで呼ぶ。同じサーバーにMojoだけのルート(`/fib/:n`)も共存する。
+- 動作確認: `/py/hello/Taro`・`/py/fib/20`・`/py/stats?csv=1,2,3.5`・`/fib/20`・範囲外400・404がすべて期待どおり。
+- **境界越えの費用**(1リクエスト): `/health` 323µs に対し `/py/hello/Taro` 350µs(Pythonを呼ぶ追加費用は約30µs)。計算の中身はPythonのままなので、`fib(30)`は純Mojo版 5.2ms に対しPython版 243ms(約47倍)。つまり**重い所はMojoのルートに置き、利用者の柔軟なロジックだけPythonに任せる**使い分けになる。
+- **制限**: Pythonは1プロセス1インタープリタ(GIL)のため、`num_workers=1`に固定している(複数ワーカーでの安全なGIL処理は未検証)。`MOJO_PYTHON_LIBRARY`で`libpython`を指定する必要がある。FastAPIの`Depends`・Pydantic検証・ミドルウェアは使えない(Python側の関数は文字列を受けて文字列を返すだけ)。
+- 検証はLinux(WSL)のみ。flareは外部の若いプロジェクト(2026-11時点)で、APIが変わる可能性がある。
