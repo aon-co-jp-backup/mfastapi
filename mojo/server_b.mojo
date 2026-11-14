@@ -8,10 +8,12 @@ Routes:
   GET /fib/{n}           -> Mojo    (same server, no Python)
   GET /openapi.json, /docs
 Python is embedded in this process (one interpreter, GIL). Keep num_workers=1 unless the GIL is handled (see README).
-Run: MOJO_PYTHON_LIBRARY=<libpython3.x.so> ./server_b <port> <dir-with-pyhandlers.py>
+Run: MOJO_PYTHON_LIBRARY=<libpython3.x.so> ./server_b <port> <dir-with-pyhandlers.py> [num_workers=1]
 """
 from std.sys import argv
 from std.python import Python, PythonObject
+from std.ffi import OwnedDLHandle
+from std.os import getenv
 
 from flare.prelude import *
 from flare.net import SocketAddr
@@ -28,6 +30,7 @@ from mfastapi_web import (
     openapi_json,
     docs_html,
     json_response,
+    json_escape,
     html_response,
 )
 
@@ -38,10 +41,27 @@ def fib_rec(n: Int) -> Int:
     return fib_rec(n - 1) + fib_rec(n - 2)
 
 
-def call_py(fname: String, arg: String) raises -> Response:
+def _py_call(fname: String, arg: String) raises -> String:
     var m = Python.import_module("pyhandlers")
     var out = m.__getattr__(fname)(arg)
-    return ok_json(String(py=out))
+    return String(py=out)
+
+
+def call_py(fname: String, arg: String) raises -> Response:
+    """Call a Python handler from any worker thread: take the GIL (PyGILState_Ensure) around the call.
+    All PythonObjects are created and destroyed inside _py_call, i.e. while the GIL is held."""
+    var lib = OwnedDLHandle(getenv("MOJO_PYTHON_LIBRARY"))
+    var st = lib.call["PyGILState_Ensure", Int32]()
+    var body = String("")
+    var err = String("")
+    try:
+        body = _py_call(fname, arg)
+    except e:
+        err = String(e)
+    lib.call["PyGILState_Release", NoneType](st)
+    if err.byte_length() > 0:
+        return json_response(500, "Internal Server Error", '{"detail":"' + json_escape(err) + '"}')
+    return ok_json(body)
 
 
 def http_400(msg: String) -> Response:
@@ -120,6 +140,9 @@ def main() raises:
         port = Int(args[1])
     if len(args) > 2:
         Python.add_to_path(String(args[2]))
+    var workers = 1
+    if len(args) > 3:
+        workers = Int(args[3])
     var r = Router()
     r.get("/health", health)
     r.get("/py/hello/:name", py_hello)
@@ -130,4 +153,8 @@ def main() raises:
     r.get("/docs", docs)
     var srv = HttpServer.bind(SocketAddr.localhost(UInt16(port)))
     print("mfastapi stage B (Mojo HTTP + Python handlers) on 127.0.0.1:" + String(port))
-    srv.serve(r^, num_workers=1)
+    if workers > 1:
+        # the main thread holds the GIL after Python init; release it so worker threads can take it via PyGILState_Ensure
+        var lib = OwnedDLHandle(getenv("MOJO_PYTHON_LIBRARY"))
+        _ = lib.call["PyEval_SaveThread", Int](  )
+    srv.serve(r^, num_workers=workers)
