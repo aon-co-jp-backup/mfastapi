@@ -250,3 +250,10 @@ Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...
 - **`/openapi.json`**(OpenAPI 3.1、parameters・operationId・422・`HTTPValidationError`/`ValidationError`)と **`/docs`**(Swagger UI)。
 - 実測(WSL、`scripts/test-server-compat-wsl.sh`=段階C、`scripts/test-server-b-compat-wsl.sh`=段階B): 応答・422本文は C 17件 / B 12件、OpenAPIは C 3経路 / B 4経路で、FastAPIとの差異 0。
 - int解析はPydanticのlaxモードに合わせた("5.0"・" 5 "・"1_000"を受理、"5."・"1e1"・"1__0"は422。FastAPIと25件で一致)。既知の差: 18桁超(64bit)、400の本文は `{"detail":"..."}`、404本文の形式は別、Swagger UIはCDN読み込み、段階Bの200スキーマは型付けなし、段階BはGILのため `num_workers=1`。
+
+### 互換性の確認方法と範囲(2026-11-14)
+- 基準は**本物のuvicorn上のFastAPI**(TestClientはパスの`%25`を二重に復号し`.`を正規化するため基準にしない。これはファジングで判明)。Mojoサーバーと同じ要求を送り、ステータスと本文(JSON)を比較する。
+- ファジング(seed固定、`tests/mojo_endpoint/test_mojo_server_compat.py`): 整数パラメータに約400種の文字列(空白・`+-`・`_`・`.`・`e`・非ASCII・`%`エンコード等)、クエリのint/str、重複キー(最後が勝つ)、`?n`(値なし)、`+`と`%2B`。**段階C 942件・段階B 394件で差異0**、OpenAPIの各経路・`HTTPValidationError`/`ValidationError`も一致。
+- ファジングで見つけて直した差: 重複クエリキー(最初→最後)、`#`はクエリ内の文字として扱う。
+- 保証の範囲: 上記の機能(パス/クエリのint・str、422、OpenAPI)。**範囲外**: Depends・Pydanticモデルの本文・ミドルウェア・str以外の型(段階B・Cでは未対応)、18桁超の整数(64bit)、404本文の形式。ルーティング加速層(`accelerate`)は別途 `mfastapi_equiv_selftest` でStarletteと同値を確認している。
+- 段階Bの複数ワーカー: 各Python呼び出しで `PyGILState_Ensure` によりGILを取る(以前は `num_workers>1` でsegfault)。負荷試験(`scripts/load-test-wsl.sh`、16並列×2000件): workers=1/2/4とも失敗0・本文一致。ただしGILのためPython処理のスループットはworkersを増やしても伸びない(`/py/hello` 約2,300 req/s、`/py/fib/20` 約460 req/s、段階C `/fib/30` 約400 req/s)。

@@ -12,7 +12,7 @@ export MOJO_PYTHON_LIBRARY=$(find "$(dirname "$PY")/.." -name 'libpython3.12.so*
 "$HOME/mfastapi-flare/server_b" 8811 $R/examples >/tmp/server_b.log 2>&1 &
 pid=$!
 for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8811/health && break; sleep 1; done
-PYTHONPATH="$HOME/mfastapi-mojo/build:$R/python" uv run --no-project --python 3.12 --with fastapi --with httpx \
+PYTHONPATH="$HOME/mfastapi-mojo/build:$R/python" uv run --no-project --python 3.12 --with fastapi --with httpx --with uvicorn \
   python $R/tests/mojo_endpoint/test_mojo_server_compat.py http://127.0.0.1:8811 b 2>&1 | grep -v -i deprecat
 rc=${PIPESTATUS[0]}
 kill $pid 2>/dev/null; wait $pid 2>/dev/null

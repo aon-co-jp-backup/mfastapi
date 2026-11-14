@@ -54,7 +54,33 @@ def build_ref_b():
     return app
 
 
-fa = TestClient(t.build(True) if MODE == "c" else build_ref_b())
+# 基準のFastAPIは本物のHTTPサーバー(uvicorn)で動かす(TestClientはパスの%25を二重に復号し「.」を正規化するため基準に向かない)
+import threading
+import time
+import uvicorn
+
+_ref_app = t.build(True) if MODE == "c" else build_ref_b()
+_srv = uvicorn.Server(uvicorn.Config(_ref_app, host="127.0.0.1", port=8899, log_level="error"))
+threading.Thread(target=_srv.run, daemon=True).start()
+for _ in range(100):
+    if _srv.started:
+        break
+    time.sleep(0.1)
+
+
+class _Ref:
+    def get(self, path):
+        class R:
+            pass
+        c = http.client.HTTPConnection("127.0.0.1", 8899, timeout=30)
+        c.request("GET", path)
+        r = c.getresponse()
+        o = R()
+        o.status_code, o.text = r.status, r.read().decode("utf-8")
+        return o
+
+
+fa = _Ref()
 CASES_B = [
     "/py/hello/Taro", "/py/hello/%E3%81%82%E3%81%84", "/py/fib/10", "/py/fib/abc", "/py/fib/99", "/py/fib/-1",
     "/py/stats?csv=1,2,3.5", "/py/stats", "/fib/20", "/fib/x", "/fib/46", "/nope",
@@ -65,6 +91,20 @@ CASES = CASES_B if MODE == "b" else [
     "/words?text=hello%20big%20world", "/words?text=", "/words", "/words?text=%E6%97%A5%E6%9C%AC%20%E8%AA%9E",
     "/nope",
 ]
+import random
+import urllib.parse as _up
+
+# 差分ファジング: 整数パラメータに様々な文字列を与え、FastAPIとステータス・本文が一致するか(seed固定)
+_rnd = random.Random(20261114)
+_ALPHA = "0123456789 +-_.eE" + chr(9) + chr(233) + chr(1635) + "abx%"
+_FUZZ = ["".join(_rnd.choice(_ALPHA) for _ in range(_rnd.randint(0, 7))) for _ in range(400)]
+_FUZZ += ["0", "-0", "+0", "00", "1_0", "1_", "_1", "1__0", "5.0", "5.", ".5", "5.0.0", " 5", "5 ", chr(9) + "5" + chr(10), "1e1", "+-1", "--1", "1 2", "%", chr(1635)]
+_PFX = "/fib/" if MODE == "c" else "/py/fib/"
+CASES = CASES + [_PFX + _up.quote(x, safe="") for x in _FUZZ if x != ""]
+if MODE == "c":  # クエリのint・str(重複キー・空・+やエンコードも)
+    CASES += ["/primes?n=" + _up.quote(x, safe="") for x in _FUZZ]
+    CASES += ["/words?text=" + _up.quote(x, safe="") for x in _FUZZ[:100]]
+    CASES += ["/primes?n=5&n=7", "/primes?n=x&n=7", "/primes?n=7&n=x", "/primes?n", "/primes?&&n=3&", "/primes?n=4#frag", "/words?text&text=a", "/words?t%65xt=hi", "/primes?n=%2B5", "/primes?n=+5", "/words?text=a+b", "/words?text=a%2Bb", "/words?other=1", "/primes?x=1&n=9"]
 bad = 0
 for url in CASES:
     sa, ba = fa.get(url).status_code, fa.get(url).text
@@ -79,7 +119,7 @@ for url in CASES:
 print("responses/422 bodies: %d cases, differences=%d" % (len(CASES), bad))
 
 # OpenAPI: parameters / 200・422 スキーマの要点がFastAPIと一致するか
-oa = (t.build(True) if MODE == "c" else build_ref_b()).openapi()
+oa = _ref_app.openapi()
 ob = json.loads(get("/openapi.json")[1])
 bad2 = 0
 OPEN_PATHS = ("/fib/{n}", "/primes", "/words") if MODE == "c" else ("/py/hello/{name}", "/py/fib/{n}", "/py/stats", "/fib/{n}")
@@ -104,4 +144,4 @@ print("openapi: openapi=%s paths compared=%d differences=%d" % (ob["openapi"], l
 st, page = get("/docs")
 assert st == 200 and "swagger-ui" in page and "/openapi.json" in page, "/docs"
 print("/docs served (Swagger UI)")
-sys.exit(1 if bad or bad2 else 0)
+sys.exit(1 if bad or bad2 else 0)  # uvicornスレッドはdaemon

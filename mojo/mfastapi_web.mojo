@@ -159,24 +159,55 @@ def path_str(req: Request, name: String, mut errs: Errors) -> String:
         return String("")
 
 
+def _query_last(req: Request, name: String) raises -> Optional[String]:
+    """Last value of query key ``name`` (percent/plus-decoded), like Starlette's QueryParams (duplicates -> last wins).
+    A bare key ("?n") counts as present with the empty string (parse_qsl keep_blank_values)."""
+    var b = req.url.as_bytes()
+    var n = len(b)
+    var i = 0
+    while i < n and b[i] != 63:  # '?'
+        i += 1
+    if i >= n:
+        return Optional[String]()
+    i += 1
+    var found = Optional[String]()
+    while i < n:  # '#' is not special on the wire (servers pass it through)
+        var end = i
+        while end < n and b[end] != 38:  # '&'
+            end += 1
+        var eq = i
+        while eq < end and b[eq] != 61:  # '='
+            eq += 1
+        if end > i:
+            var key = String(unsafe_from_utf8=Span(b)[i:eq])
+            if urldecode(key) == name:
+                if eq < end:
+                    found = Optional[String](urldecode(String(unsafe_from_utf8=Span(b)[eq + 1 : end])))
+                else:
+                    found = Optional[String](String(""))
+        i = end + 1
+    return found
+
+
 def query_int(req: Request, name: String, default: Int, mut errs: Errors) raises -> Int:
     """Optional query int with a default (absent -> default; present but invalid -> 422)."""
-    if not req.has_query_param(name):
+    var raw = _query_last(req, name)
+    if not raw:
         return default
-    var raw = urldecode(req.query_param(name))
-    var v = parse_int(raw)
+    var v = parse_int(raw.value())
     if not v:
-        errs.int_parsing("query", name, raw)
+        errs.int_parsing("query", name, raw.value())
         return default
     return v.value()
 
 
 def query_str(req: Request, name: String, mut errs: Errors) raises -> String:
-    """Required query string (absent -> 422 missing)."""
-    if not req.has_query_param(name):
+    """Required query string (absent -> 422 missing; duplicates -> last)."""
+    var raw = _query_last(req, name)
+    if not raw:
         errs.missing("query", name)
         return String("")
-    return urldecode(req.query_param(name))
+    return raw.value()
 
 
 # ---------------------------------------------------------------- OpenAPI
