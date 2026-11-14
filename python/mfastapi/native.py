@@ -19,8 +19,14 @@ def _candidates():
     if env:
         yield env
     here = os.path.dirname(os.path.abspath(__file__))
-    for name in ("libmfastapi.so", "libmfastapi.dylib", "mfastapi.dll"):
+    names = ("mfastapi.dll", "libmfastapi.dll") if os.name == "nt" else (
+        ("libmfastapi.dylib", "libmfastapi.so") if sys.platform == "darwin" else ("libmfastapi.so",)
+    )
+    for name in names:
         yield os.path.join(here, name)
+    # Android(Chaquopy等のnativeLibraryDir)・iOS(アプリ同梱)はライブラリ名だけで探す。
+    for name in names:
+        yield name
 
 
 def load(path=None):
