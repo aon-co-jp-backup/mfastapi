@@ -19,7 +19,8 @@ jobs:
       - uses: pypa/cibuildwheel@v4.3.5
         env:
           CIBW_PLATFORM: ${{ matrix.platform }}
-          CIBW_TEST_COMMAND: "python {project}/tests/mobile_smoke.py"
+          CIBW_TEST_SOURCES: "tests/mobile_smoke.py"
+          CIBW_TEST_COMMAND: "python mobile_smoke.py"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.platform }}
