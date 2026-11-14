@@ -77,3 +77,29 @@ bash scripts/build-android.sh                                      # Android NDK
 - 呼び出し固定費の実測(`bench/bench_overhead.py`、`add(2,3)`): 純Python演算25ns / ctypes 735〜916ns / **MojoのPythonModuleBuilder拡張 141ns**。→ 先頭ヒットでもStarlette(約480ns)に勝つには、一括照合を拡張モジュール版(Python 3専用)で提供するのが筋(未実装)。ctypes版(Python 2/他OS)は大きなルート表向け。
 - Mojo版はC版より約1.5〜2倍遅い(構造体経由の読み出し等、最適化は未着手)。測定はこの1台・Linux(WSL)のみ。Windows/Android/macOSの速度は未測定。
 - 本物のStarletteは照合の後に`scope`の更新やパラメータ変換(`convert`)も行うため、実アプリでの全体の速度向上はこの表より小さい。
+
+## 拡張モジュール版の一括照合(Python 3専用、2026-11-14)
+`mojo/mfastapi_native.mojo`(`PythonModuleBuilder`)に **`RouteTable`** を追加した。ルート登録時にテンプレートを一度だけ解析して(リテラルは連結、パラメータは種別コード化)保持し、`table.first_match(path)`が最初に一致した番号(なければ`-1`)を返す。`mojo/mfastapi_match.mojo`(照合の核)・`mojo/mfastapi_table.mojo`(コンパイル済み表)をC ABI版と共有する。
+```python
+import mfastapi_native as ext          # build: scripts/build-ext-wsl.sh
+t = ext.RouteTable(["/", "/items/{id:int}", "/items/{name}"])
+t.first_match("/items/7")   # -> 1
+```
+`mfastapi.native.make_table(templates)` は拡張があればそれ、無ければctypes版を返す(Python 2でも使える)。
+
+**速さを出すために入れた工夫**(それぞれ実測で確認): ①ctypesをやめて拡張にし呼び出し固定費を0.74〜0.9µs→約0.14µsへ、②Pythonのstrが持つUTF-8バッファをCPythonから**コピーなしで**直接参照(`PyUnicode_AsUTF8AndSize`、1回あたり約80ns短縮)、③テンプレートを事前解析して毎回の再解析をなくす、④先頭のリテラルを関数呼び出し前にその場で比較して足切り、⑤末尾の`{str}`は取り切れたらバックトラックなしで一致。
+
+**正しさ**: `bench/diff_table.py`(ランダムな表×パスをStarletteの正規表現と比較): Python 3.12・3.14で各16万件、**不一致0**。`scripts/test-ext-wsl.sh`で再現できる。
+
+**性能**(`bench/bench_match.py`、Python 3.12・WSL、1回の探索あたりns。Starlette 1.8.0 = コンパイル済み正規表現を順に`match`):
+
+| ルート数・当たる位置 | Starlette | ctypes一括 | **拡張 RouteTable** | 拡張の倍率 |
+|---|---|---|---|---|
+| 10・先頭 | 470 | 1,462 | **253** | 1.9倍 |
+| 10・末尾 | 2,286 | 1,947 | **347** | 6.6倍 |
+| 50・末尾 | 12,454 | 3,526 | **664** | 18.8倍 |
+| 200・末尾 | 47,768 | 11,716 | **2,079** | 23.0倍 |
+| 200・外れ | 47,210 | 8,665 | **1,292** | 36.5倍 |
+
+先頭ヒットでもStarletteに勝つ(前回のctypes版は0.3倍=負け)。残る固定費は約230ns(Pythonのメソッド呼び出し約140ns+その他)で、これ以上はPython側の呼び出し機構の限界に近い。
+注意: ①実アプリのStarletteは照合後に`scope`更新・パラメータ変換も行うため全体の改善はこの表より小さい。②この1台・Linux(WSL)・Python 3.12のみの測定。③今回の拡張版は`RouteTable`の照合だけで、パラメータ値の取り出し(`path_params`)は未実装(次の課題)。④Mojo拡張のためPython 2・Windowsネイティブ・Android・iOSでは使えない(ctypes/C版にフォールバック)。

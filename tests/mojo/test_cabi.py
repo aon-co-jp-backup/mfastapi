@@ -34,6 +34,8 @@ def check():
     assert native.route_first_match(packed, "/items/abc") == 2
     assert native.route_first_match(packed, "/files/x/y") == 3
     assert native.route_first_match(packed, "/nope/1") == -1
+    t = native.make_table(["/", "/items/{id:int}", "/items/{name}"])
+    assert t.size() == 3 and t.first_match("/items/7") == 1 and t.first_match("/items/x") == 2 and t.first_match("/q") == -1
 
 
 def test_cabi():

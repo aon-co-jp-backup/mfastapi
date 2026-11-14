@@ -6,7 +6,7 @@ export PATH="$HOME/.local/bin:/usr/bin:/bin"
 B="$HOME/mfastapi-mojo/build"; mkdir -p "$B"
 gcc -std=c99 -O2 -Wall -Wextra -shared -fPIC -fvisibility=hidden /mnt/f/mfastapi/c/mfastapi_cabi.c -o "$B/libmfastapi_c.so"
 . "$HOME/mfastapi-mojo/.venv/bin/activate"
-mojo build /mnt/f/mfastapi/mojo/mfastapi_cabi.mojo --emit shared-lib -o "$B/libmfastapi.so"
+mojo build -I /mnt/f/mfastapi/mojo /mnt/f/mfastapi/mojo/mfastapi_cabi.mojo --emit shared-lib -o "$B/libmfastapi.so"
 T=/mnt/f/mfastapi/tests/mojo
 for lib in libmfastapi.so libmfastapi_c.so; do
   for py in "$HOME/py27/bin/python2.7" python; do

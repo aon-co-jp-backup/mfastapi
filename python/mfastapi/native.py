@@ -106,3 +106,25 @@ def route_first_match(packed, path):
     if r == -3:
         raise RuntimeError("path matching gave up (backtracking budget)")
     return r
+
+
+class _CtypesTable(object):
+    def __init__(self, templates):
+        self._packed = pack_templates(templates)
+        self._n = len(templates)
+
+    def size(self):
+        return self._n
+
+    def first_match(self, path):
+        return route_first_match(self._packed, path)
+
+
+def make_table(templates):
+    """ルート表を作る。Python 3でMojo拡張(mfastapi_native)があればそれ(最速)、無ければctypes版。
+    どちらも .first_match(path) -> 最初に一致したテンプレートの番号(なければ -1) を持つ。"""
+    try:
+        import mfastapi_native
+        return mfastapi_native.RouteTable(list(templates))
+    except ImportError:
+        return _CtypesTable(list(templates))
