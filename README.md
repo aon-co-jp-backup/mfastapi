@@ -200,3 +200,30 @@ mfastapi.accelerate(app)   # ルート登録の後に呼ぶ。要 Python 3 + mfa
 - **結果**: 3モードとも起動でき、8本のリクエスト(各ルート・パスパラメータ・`{p:path}`・404・末尾スラッシュ・`/__backend`)の**ステータスと本文がモード間で完全に同一**だった。
 - **速度(uvicornの実HTTP、1リクエストあたり)**: 200ルートで、末尾ルートは拡張なし1,345µs → Mojo 1,088µs・C拡張 1,086µs(約1.24倍)。先頭ルートと404は約1,030〜1,150µsで差なし。HTTPサーバーとFastAPIの処理が大半で、ルート探索の短縮は目立ちにくい。**数十〜数千ルートで、末尾寄りのルートが多いアプリほど効く**(前節のベンチ参照)。MojoとC拡張に実用上の差は無い。
 - 注意: 測定は1台のWSL(ループバック接続)のみ。マルチワーカー・本番のnginx/リバースプロキシ配下・負荷下での測定は未実施。
+
+## 段階A+: Mojoで書いた関数をFastAPIのエンドポイントにする `mojo_endpoint`(2026-11-14)
+FastAPIの本体(引数の取り出し・Pydantic検証・`Depends`・OpenAPI・`/docs`)はそのまま、**エンドポイントの中身(計算)だけをMojoで書く**。
+
+```python
+import mfastapi_handlers as h          # mojo/mfastapi_handlers.mojo をビルドした拡張
+from mfastapi import mojo_endpoint
+app.add_api_route("/fib/{n}", mojo_endpoint(h.fib, {"n": int}, returns=int), methods=["GET"])
+app.add_api_route("/primes", mojo_endpoint(h.count_primes, {"n": (int, 1000)}, returns=int))   # クエリn(既定1000)
+```
+Mojo拡張の関数にはシグネチャが無いため、`params`で宣言した引数名・型・既定値を持つ薄いPython関数でくるむ(`inspect.Signature`を設定)。Mojo側の`raise`はHTTP 400(`error_status`で変更可)になる。サンプルのMojo関数(`mojo/mfastapi_handlers.mojo`): `fib`・`count_primes`(ふるい)・`word_count`・`mean`。ビルドは`scripts/build-handlers-wsl.sh`、検証は`scripts/test-handlers-wsl.sh`。
+
+**検証**(`tests/mojo_endpoint/test_endpoint.py`、Python 3.12・3.14): 同じ4エンドポイントを純Pythonで書いたものと比較。正常系・型エラー(422、本文もFastAPI生成)・欠落・不正本文を含む14ケースで**ステータスと本文が一致(不一致0)**、OpenAPIの`parameters`・`requestBody`・応答スキーマ・`operationId`も一致、Mojoの`raise`がHTTP 400になることを確認。
+
+**速度**(`bench/bench_handlers.py`、ASGIを直接呼ぶ1リクエストあたり、Python 3.12・WSL、FastAPIの処理込み):
+
+| エンドポイント | 純Python | Mojo | 倍率 |
+|---|---|---|---|
+| fib(10) | 753µs | 737µs | 1.0倍 |
+| fib(25) | 19.5ms | 1.2ms | 16倍 |
+| fib(30) | 206ms | 5.2ms | 40倍 |
+| 素数の数(n=1,000) | 823µs | 759µs | 1.1倍 |
+| 素数の数(n=100万) | 92ms | 12ms | 7.7倍 |
+| 素数の数(n=1000万) | 1.18s | 156ms | 7.6倍 |
+| 単語数(短文) | 749µs | 753µs | 1.0倍 |
+
+**正直な注意**: ①**計算が軽いエンドポイントでは効果が無い**(約750µsはFastAPIの固定費で、Mojoにしても変わらない)。効くのは1リクエストの計算が数ms以上のCPU負荷型。②Mojo関数の実行中は**GILを保持**するため、同じプロセスの他のPythonスレッドは止まる(長い計算は別ワーカー/プロセスで)。③`mean`のようにPythonのlistを渡す関数は、変換費用で得にならない場合がある(未測定)。④サンプル関数は動作確認用で、実アプリのロジックはこの形で自分で書く。⑤検証はLinux(WSL)のみ。

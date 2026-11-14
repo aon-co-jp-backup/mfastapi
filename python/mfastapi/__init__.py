@@ -2,8 +2,9 @@
 
 `accelerate` は Starlette だけで使える(fastapi不要)。IR/OpenAPI関連(collect_ir など)は fastapi が要るので、使うときに初めて読み込む。"""
 from .accel import accelerate, backend
+from .mojo import mojo_endpoint
 
-__all__ = ["collect_ir", "ir_to_openapi_skeleton", "diff_openapi", "accelerate", "backend"]
+__all__ = ["collect_ir", "ir_to_openapi_skeleton", "diff_openapi", "accelerate", "backend", "mojo_endpoint"]
 __version__ = "0.1.1"
 
 
