@@ -1,0 +1,26 @@
+name: mobile
+
+# iOS(シミュレーター)・Android(エミュレーター)向けホイールをcibuildwheelで作り、C拡張の依存なしスモークテストを実行する。
+on:
+  workflow_dispatch:
+
+jobs:
+  mobile:
+    name: ${{ matrix.platform }} (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { platform: ios, os: macos-latest }
+          - { platform: android, os: ubuntu-latest }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pypa/cibuildwheel@v4.3.5
+        env:
+          CIBW_PLATFORM: ${{ matrix.platform }}
+          CIBW_TEST_COMMAND: "python {project}/tests/mobile_smoke.py"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.platform }}
+          path: wheelhouse/*.whl
