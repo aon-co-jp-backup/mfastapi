@@ -36,3 +36,23 @@ jobs:
         with:
           name: sdist
           path: dist/*.tar.gz
+
+  release:
+    # タグ(v*)のときだけ、全ホイールとsdistをGitHub Releaseに添付する(PyPIへは上げない)。
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [wheels, sdist]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" artifacts/* --repo "$GITHUB_REPOSITORY" \
+            --title "$GITHUB_REF_NAME" \
+            --notes "Wheels (manylinux x86_64/aarch64, macOS Intel/Apple silicon, Windows) and sdist. Each wheel passed the router equivalence test in CI. Install: pip install <wheel>."
