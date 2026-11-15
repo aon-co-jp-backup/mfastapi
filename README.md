@@ -400,3 +400,5 @@ Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...
 - **Server-streaming is supported** (`open-runo-connect-*` in RPoem, main `1570371` / `34cb595`): `application/connect+json` envelopes, also via gRPC / gRPC-web; mid-stream errors end with a terminal frame; item/time limits, resource release on disconnect, and a real-TCP `WatchEvents` test pass. **Not yet deployed to the VPS.**
 - **When to use**: watching changes, progress updates, incremental results. One-shot calls stay plain Connect unary. Client-streaming / bidirectional only when needed.
 - German and Russian not yet added.
+
+- **Windows ARM64(Snapdragon)ホイール**(2026-11-15、`wheels.yml`に`windows-11-arm`を追加): GitHub ActionsのARM64ランナーでホイールをビルドし、ホイール内でRustバックエンド確認+等価性テストが合格(6環境すべて成功、Release添付はタグ時)。実機のSnapdragon PCは未確認。
