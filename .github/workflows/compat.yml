@@ -21,21 +21,21 @@ jobs:
           python-version: ${{ matrix.python }}
       - uses: dtolnay/rust-toolchain@stable
       - name: Rust unit tests
-        run: cargo test --release --manifest-path rust/fastapim-core/Cargo.toml
+        run: cargo test --release --manifest-path rust/mfastapi-core/Cargo.toml
       - name: Build and install (Rust extension is the default backend)
         run: pip install ".[fastapi]" httpx pydantic
       - name: Backend is Rust
-        run: python -c "import fastapim; assert fastapim.backend()=='rust', fastapim.backend()"
+        run: python -c "import mfastapi; assert mfastapi.backend()=='rust', mfastapi.backend()"
       - name: Router equivalence vs Starlette and FastAPI
-        run: python -m fastapim_equiv_selftest
+        run: python -m mfastapi_equiv_selftest
       - name: Rust security core vs Pydantic / parse_qsl (differential fuzz)
         run: |
-          cargo build --release --manifest-path rust/fastapim-core/Cargo.toml
-          FASTAPIM_RS_LIB=$PWD/rust/fastapim-core/target/release/libfastapim_core.so PYTHONPATH=python python tests/test_rust_core.py
+          cargo build --release --manifest-path rust/mfastapi-core/Cargo.toml
+          MFASTAPI_RS_LIB=$PWD/rust/mfastapi-core/target/release/libmfastapi_core.so PYTHONPATH=python python tests/test_rust_core.py
       - name: Rust HTTP server (stage C) vs real FastAPI on uvicorn
         run: |
           pip install uvicorn
-          cargo build --release --manifest-path rust/fastapim-server/Cargo.toml
-          rust/fastapim-server/target/release/fastapim-server c 8831 &
+          cargo build --release --manifest-path rust/mfastapi-server/Cargo.toml
+          rust/mfastapi-server/target/release/mfastapi-server c 8831 &
           sleep 3
           PYTHONPATH=python:tests/mojo_endpoint python tests/mojo_endpoint/test_mojo_server_compat.py http://127.0.0.1:8831 c

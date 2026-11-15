@@ -1,16 +1,16 @@
 # -*- coding: utf-8 -*-
 """段階A+: Mojo関数をFastAPIのエンドポイントとして登録し、純Pythonの同等関数と同じ応答・OpenAPI・エラーになることを確かめる。
-実行: PYTHONPATH=<fastapim_handlers.soのdir>:<repo>/python python tests/mojo_endpoint/test_endpoint.py (要 fastapi httpx)"""
+実行: PYTHONPATH=<mfastapi_handlers.soのdir>:<repo>/python python tests/mojo_endpoint/test_endpoint.py (要 fastapi httpx)"""
 import sys
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 try:
-    import fastapim_handlers as h
+    import mfastapi_handlers as h
 except ImportError:  # Mojo build not available (CI): pure-Python equivalents
     import pyref_handlers as h
-from fastapim import mojo_endpoint
+from mfastapi import mojo_endpoint
 
 
 def py_fib(n):

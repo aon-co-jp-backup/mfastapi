@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """拡張モジュールの RouteTable.first_match / path_matches を Starlette と突き合わせる(Python 3 + starlette)。
-使い方: PYTHONPATH=<fastapim_native.soのあるdir> python bench/diff_table.py [件数]"""
+使い方: PYTHONPATH=<mfastapi_native.soのあるdir> python bench/diff_table.py [件数]"""
 import random
 import sys
 
-import fastapim_native as ext
+import mfastapi_native as ext
 from starlette.routing import compile_path
 
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 20000

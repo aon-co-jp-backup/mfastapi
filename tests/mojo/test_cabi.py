@@ -4,7 +4,7 @@ from __future__ import print_function
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "python", "fastapim"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "python", "mfastapi"))
 import native  # noqa: E402  (パッケージ全体はPython 3専用のため、nativeだけを直接読む)
 
 

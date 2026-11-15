@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 """path_matches を Starlette の compile_path と突き合わせる差分ファザー(Python 3専用)。
-使い方: FASTAPIM_LIB=<lib> python bench/diff_starlette.py [件数]"""
+使い方: MFASTAPI_LIB=<lib> python bench/diff_starlette.py [件数]"""
 import os, random, sys, collections
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "python", "fastapim"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "python", "mfastapi"))
 import native
 from starlette.routing import compile_path
 
@@ -69,4 +69,4 @@ for _ in range(N):
 total = sum(v for k, v in cats.items() if k != "starlette-rejects-template")
 print("cases=%d compared=%d" % (N, total))
 for k, v in cats.most_common(): print("  %-28s %d" % (k, v))
-for k, e in examples.items(): print("  e.g.[%s] tpl=%s path=%s starlette=%s fastapim=%s" % ((k,) + tuple(ascii(x) if isinstance(x,str) else x for x in e)))
+for k, e in examples.items(): print("  e.g.[%s] tpl=%s path=%s starlette=%s mfastapi=%s" % ((k,) + tuple(ascii(x) if isinstance(x,str) else x for x in e)))

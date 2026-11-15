@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Pure-Python equivalents of mojo/fastapim_handlers.mojo, used as the FastAPI reference when no Mojo build is available (CI)."""
+"""Pure-Python equivalents of mojo/mfastapi_handlers.mojo, used as the FastAPI reference when no Mojo build is available (CI)."""
 
 
 def fib(n):

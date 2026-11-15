@@ -26,7 +26,7 @@ jobs:
           CIBW_ENVIRONMENT_LINUX: 'PATH="$HOME/.cargo/bin:$PATH"'
           CIBW_TEST_REQUIRES: "fastapi httpx"
           # Rust拡張が既定のバックエンドとして入っていること + 等価性テスト
-          CIBW_TEST_COMMAND: "python -c \"import fastapim; assert fastapim.backend()=='rust', fastapim.backend()\" && python -m fastapim_equiv_selftest"
+          CIBW_TEST_COMMAND: "python -c \"import mfastapi; assert mfastapi.backend()=='rust', mfastapi.backend()\" && python -m mfastapi_equiv_selftest"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.os }}

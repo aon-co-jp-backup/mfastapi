@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
-"""Differential fuzz of the Rust core against Pydantic (int) and urllib.parse.parse_qsl (query). Needs pydantic; FASTAPIM_RS_LIB set."""
+"""Differential fuzz of the Rust core against Pydantic (int) and urllib.parse.parse_qsl (query). Needs pydantic; MFASTAPI_RS_LIB set."""
 import random
 import sys
 import urllib.parse as up
 
 from pydantic import TypeAdapter
 
-from fastapim import core
+from mfastapi import core
 
 ta = TypeAdapter(int)
 rnd = random.Random(20261114)

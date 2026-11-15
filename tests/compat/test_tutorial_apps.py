@@ -6,7 +6,7 @@ import json
 from typing import Annotated
 from fastapi import APIRouter, Cookie, Depends, FastAPI, Header, Query
 from pydantic import BaseModel
-from fastapim import collect_ir, diff_openapi, ir_to_openapi_skeleton
+from mfastapi import collect_ir, diff_openapi, ir_to_openapi_skeleton
 
 
 class Item(BaseModel):

@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """パラメータ値まで取り出す速さ: Starlette(match + groupdict + convert) vs 拡張 RouteTable.match。
-使い方: PYTHONPATH=<fastapim_native.soのdir> python bench/bench_params.py"""
+使い方: PYTHONPATH=<mfastapi_native.soのdir> python bench/bench_params.py"""
 import platform
 import time
 
-import fastapim_native as ext
+import mfastapi_native as ext
 from starlette.routing import compile_path
 
 

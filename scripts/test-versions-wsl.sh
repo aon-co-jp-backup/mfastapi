@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # Starlette / FastAPI の複数バージョンで accelerate の等価性テストを実行する(cext経由、Python 3.12)。
-#   使い方: wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/test-versions-wsl.sh   (先に test-cext-wsl.sh でcextをビルド)
+#   使い方: wsl -d Ubuntu -- bash /mnt/f/MFastAPI/scripts/test-versions-wsl.sh   (先に test-cext-wsl.sh でcextをビルド)
 set -uo pipefail
 export PATH="$HOME/.local/bin:/usr/bin:/bin"
-export PYTHONPATH="$HOME/fastapim-cext/py3.12:/mnt/f/FastAPIM/python"
+export PYTHONPATH="$HOME/mfastapi-cext/py3.12:/mnt/f/MFastAPI/python"
 for combo in "starlette==0.46.2 fastapi==0.115.14" "starlette==0.52.1 fastapi==0.128.8" "starlette fastapi"; do
   set -- $combo
   echo "=== $combo ==="
@@ -13,7 +13,7 @@ print("starlette", starlette.__version__, "fastapi", fastapi.__version__)
 import runpy, sys
 sys.argv = ["t"]
 try:
-    runpy.run_path("/mnt/f/FastAPIM/tests/accel/test_router_equiv.py", run_name="__main__")
+    runpy.run_path("/mnt/f/MFastAPI/tests/accel/test_router_equiv.py", run_name="__main__")
 except SystemExit as e:
     print("exit", e.code)
 PY

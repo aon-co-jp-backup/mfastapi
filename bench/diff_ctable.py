@@ -1,10 +1,10 @@
 # -*- coding: utf-8 -*-
 """C版コンパイル済みルート表(native.CTable)を Starlette の照合と突き合わせる(Python 3 + starlette)。
-使い方: FASTAPIM_LIB=<libfastapim_c.so|fastapim.dll> PYTHONPATH=<repo>/python python bench/diff_ctable.py [件数]"""
+使い方: MFASTAPI_LIB=<libmfastapi_c.so|mfastapi.dll> PYTHONPATH=<repo>/python python bench/diff_ctable.py [件数]"""
 import random
 import sys
 
-from fastapim import native
+from mfastapi import native
 from starlette.routing import compile_path
 
 N = int(sys.argv[1]) if len(sys.argv) > 1 else 20000

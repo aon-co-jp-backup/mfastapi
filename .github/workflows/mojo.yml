@@ -1,6 +1,6 @@
 name: mojo
 
-# Mojo拡張(fastapim_native)をLinux x86_64 / Linux ARM64 / macOS Apple siliconでビルドし、Starlette差分と等価性テストを実行する。
+# Mojo拡張(mfastapi_native)をLinux x86_64 / Linux ARM64 / macOS Apple siliconでビルドし、Starlette差分と等価性テストを実行する。
 on:
   workflow_dispatch:
   push:
@@ -24,14 +24,14 @@ jobs:
           uv pip install mojo --extra-index-url https://whl.modular.com/nightly/simple/ --prerelease allow
           mojo --version
           mkdir -p build
-          mojo build -I mojo mojo/fastapim_native.mojo --emit shared-lib -o build/fastapim_native.so
-          mojo build -I mojo mojo/fastapim_cabi.mojo --emit shared-lib -o build/libfastapim.so
+          mojo build -I mojo mojo/mfastapi_native.mojo --emit shared-lib -o build/mfastapi_native.so
+          mojo build -I mojo mojo/mfastapi_cabi.mojo --emit shared-lib -o build/libmfastapi.so
           ls -l build
       - name: Differential test vs Starlette + router equivalence
         run: |
           . .venv/bin/activate
           uv pip install starlette fastapi httpx
-          export PYTHONPATH="$PWD/build:$PWD/python" FASTAPIM_LIB="$PWD/build/libfastapim.so"
+          export PYTHONPATH="$PWD/build:$PWD/python" MFASTAPI_LIB="$PWD/build/libmfastapi.so"
           python bench/diff_table.py 5000
-          python -c "import fastapim.accel as a; print('table impl:', a._ext.__name__)"
+          python -c "import mfastapi.accel as a; print('table impl:', a._ext.__name__)"
           python tests/accel/test_router_equiv.py

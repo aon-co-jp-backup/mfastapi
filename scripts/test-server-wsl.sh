@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # 実際のLinux Webサーバー(uvicorn)で、3つのモード(Mojo拡張 / C拡張 / 拡張なし)が同じ応答を返し、動くことを確認する。
 #   前提: test-cext-wsl.sh でC拡張を、build-ext-wsl.sh でMojo拡張をビルド済み
-#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/test-server-wsl.sh
+#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/MFastAPI/scripts/test-server-wsl.sh
 set -uo pipefail
 export PATH="$HOME/.local/bin:/usr/bin:/bin"
-R=/mnt/f/FastAPIM
-declare -A PP=( [mojo]="$HOME/fastapim-mojo/build:$R/python" [cext]="$HOME/fastapim-cext/py3.12:$R/python" [none]="$R/python" )
+R=/mnt/f/MFastAPI
+declare -A PP=( [mojo]="$HOME/mfastapi-mojo/build:$R/python" [cext]="$HOME/mfastapi-cext/py3.12:$R/python" [none]="$R/python" )
 PATHS="/svc0/items /api/v1/res1/abc /api/v1/res199/z /svc198/items /files/a/b/c /nope /svc0/items/ /__backend"
 rm -rf /tmp/mf-srv; mkdir -p /tmp/mf-srv
 port=8700
@@ -30,7 +30,7 @@ def run(path, n=3000):
 print("%-5s req/last-route: %6.0f us   first-route: %6.0f us   404: %6.0f us" % (mode, run("/api/v1/res199/z"), run("/svc0/items"), run("/nope")))
 PY
   kill $pid 2>/dev/null; wait $pid 2>/dev/null
-  echo "[$mode] $(grep 'fastapim backend' /tmp/mf-srv/$mode.log | head -1)"
+  echo "[$mode] $(grep 'mfastapi backend' /tmp/mf-srv/$mode.log | head -1)"
 done
 echo "== 応答の比較(/__backend 行は実装名が違うので除く) =="
 for m in mojo cext; do

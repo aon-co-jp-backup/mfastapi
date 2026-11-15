@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # 段階C: 純Mojoサーバー(flare)を起動し、FastAPI(純Python版・Mojo関数版)と同じ要求で応答と速度を比べる。
 #   前提: setup-flare-wsl.sh, build-server-c-wsl.sh, build-handlers-wsl.sh
-#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/test-server-c-wsl.sh
+#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/MFastAPI/scripts/test-server-c-wsl.sh
 set -uo pipefail
 export PATH="$HOME/.pixi/bin:$HOME/.local/bin:/usr/bin:/bin"
-R=/mnt/f/FastAPIM
-"$HOME/fastapim-flare/server_c" 8801 >/tmp/server_c.log 2>&1 &
+R=/mnt/f/MFastAPI
+"$HOME/mfastapi-flare/server_c" 8801 >/tmp/server_c.log 2>&1 &
 cpid=$!
-PYTHONPATH="$HOME/fastapim-mojo/build:$R/python:$R/tests/mojo_endpoint" uv run --no-project --python 3.12 --with fastapi --with uvicorn \
+PYTHONPATH="$HOME/mfastapi-mojo/build:$R/python:$R/tests/mojo_endpoint" uv run --no-project --python 3.12 --with fastapi --with uvicorn \
   uvicorn --app-dir $R/examples server_ab:app --port 8802 --log-level warning >/tmp/server_ab.log 2>&1 &
 fpid=$!
 for i in $(seq 1 60); do curl -s -o /dev/null http://127.0.0.1:8801/health && curl -s -o /dev/null http://127.0.0.1:8802/health && break; sleep 1; done

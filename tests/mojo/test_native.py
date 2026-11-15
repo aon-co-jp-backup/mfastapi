@@ -1,4 +1,4 @@
-import fastapim_native as n
+import mfastapi_native as n
 
 
 def test_add():

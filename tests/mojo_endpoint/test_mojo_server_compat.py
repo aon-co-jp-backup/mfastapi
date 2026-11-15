@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """段階B・C(MojoのHTTPサーバー)が、FastAPI+Mojo関数版と同じ422エラー形式・OpenAPI・応答を返すことをHTTPで確かめる。
 使い方: python test_mojo_server_compat.py <MojoサーバーのURL(例 http://127.0.0.1:8801)> [prefix]
-FastAPI側は同じディレクトリの test_endpoint.build(True) をインプロセスで呼ぶ(要 PYTHONPATH に fastapim_handlers と fastapim)。
+FastAPI側は同じディレクトリの test_endpoint.build(True) をインプロセスで呼ぶ(要 PYTHONPATH に mfastapi_handlers と mfastapi)。
 prefix は Mojoサーバー側のパス接頭辞(段階Bの /py ではなく、Mojoネイティブの経路は空)。"""
 import http.client
 import json

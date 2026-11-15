@@ -6,7 +6,7 @@ import sys
 
 from fastapi import FastAPI
 
-import fastapim
+import mfastapi
 
 app = FastAPI()
 N = 200
@@ -24,8 +24,8 @@ async def files(p: str):
 
 @app.get("/__backend")
 async def which():
-    return {"backend": fastapim.backend()}
+    return {"backend": mfastapi.backend()}
 
 
-fastapim.accelerate(app)
-print("fastapim backend:", fastapim.backend(), file=sys.stderr)
+mfastapi.accelerate(app)
+print("mfastapi backend:", mfastapi.backend(), file=sys.stderr)

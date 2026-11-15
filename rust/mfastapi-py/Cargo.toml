@@ -1,0 +1,18 @@
+[package]
+name = "mfastapi-py"
+version = "0.1.0"
+edition = "2021"
+description = "CPython extension (PyO3, abi3) exposing the MFastAPI Rust core: RouteTable, parse_int, query_last"
+license = "MIT"
+
+[lib]
+name = "mfastapi_rust"
+crate-type = ["cdylib"]
+
+[dependencies]
+mfastapi-core = { path = "../mfastapi-core" }
+pyo3 = { version = "0.30", features = ["extension-module"] }
+
+[profile.release]
+opt-level = 3
+lto = true

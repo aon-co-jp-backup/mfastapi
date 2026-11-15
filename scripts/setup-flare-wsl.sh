@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Flare(Mojo製のHTTPサーバー、MIT)をWSLに導入する(pixi経由)。段階B/C用。
-#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/FastAPIM/scripts/setup-flare-wsl.sh
+#   PowerShell: wsl -d Ubuntu -- bash /mnt/f/MFastAPI/scripts/setup-flare-wsl.sh
 set -euo pipefail
 export PATH="$HOME/.pixi/bin:$HOME/.local/bin:/usr/bin:/bin"
 command -v pixi >/dev/null || curl -fsSL https://pixi.sh/install.sh | bash

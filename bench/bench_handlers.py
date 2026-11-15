@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """段階A+: 同じ計算を 純Python / Mojo で行うFastAPIエンドポイントの速さ(ASGI経由、TestClientを使わず直接呼ぶ)。
-使い方: PYTHONPATH=<fastapim_handlers.soのdir>:<repo>/python python bench/bench_handlers.py"""
+使い方: PYTHONPATH=<mfastapi_handlers.soのdir>:<repo>/python python bench/bench_handlers.py"""
 import asyncio
 import os
 import platform

@@ -1,5 +1,5 @@
 include README.md
-include c/fastapim_cabi.c
-include c/fastapim_pyext.c
+include c/mfastapi_cabi.c
+include c/mfastapi_pyext.c
 recursive-include rust *.rs *.toml
 exclude rust/*/Cargo.lock

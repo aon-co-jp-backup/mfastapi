@@ -3,9 +3,9 @@ requires = ["setuptools>=64", "setuptools-rust>=1.9"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fastapim"
+name = "mfastapi"
 version = "0.2.0"
-description = "Mojo/C accelerated route matching and IR tooling for FastAPI/Starlette (Starlette-compatible, verified by differential testing)"
+description = "MFastAPI: FastAPI-compatible framework with Python syntax on the surface and Rust inside (Mojo/RMojo friendly); Starlette-compatible route matching verified by differential testing"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = ["starlette"]
@@ -15,12 +15,12 @@ license = { text = "MIT" }
 fastapi = ["fastapi"]
 
 [project.urls]
-Homepage = "https://github.com/aon-co-jp/FastAPIM"
+Homepage = "https://github.com/aon-co-jp/MFastAPI"
 
 [tool.setuptools]
 package-dir = { "" = "python" }
-packages = ["fastapim"]
-py-modules = ["fastapim_cext_selftest", "fastapim_equiv_selftest"]
+packages = ["mfastapi"]
+py-modules = ["mfastapi_cext_selftest", "mfastapi_equiv_selftest"]
 
 [[tool.cibuildwheel.overrides]]
 select = "*-win32"

@@ -20,7 +20,7 @@ jobs:
         env:
           CIBW_PLATFORM: ${{ matrix.platform }}
           CIBW_TEST_REQUIRES: "httpx"
-          CIBW_TEST_COMMAND: "python -m fastapim_equiv_selftest"
+          CIBW_TEST_COMMAND: "python -m mfastapi_equiv_selftest"
       - uses: actions/upload-artifact@v4
         with:
           name: wheels-${{ matrix.platform }}
