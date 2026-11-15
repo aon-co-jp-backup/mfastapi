@@ -7,5 +7,7 @@ SRC=/mnt/f/MFastAPI
 OUT="$HOME/mfastapi-mojo/build"; mkdir -p "$OUT"
 mojo build -I "$SRC/mojo" "$SRC/mojo/mfastapi_native.mojo" --emit shared-lib -o "$OUT/mfastapi_native.so"
 uv pip install -q pytest
-cp "$SRC/tests/mojo/"*.py "$OUT/"
-cd "$OUT" && python -m pytest -q .
+rm -f "$OUT/test_cabi.py"
+cp "$SRC/tests/mojo/parity.py" "$SRC/tests/mojo/test_native.py" "$OUT/"
+(cd "$OUT" && python -m pytest -q .)
+# test_cabi.py is a standalone script that needs libmfastapi.so: run scripts/test-cabi-wsl.sh instead.
