@@ -402,3 +402,23 @@ Mojo(flare)がHTTP・ルーティング・型付き抽出を担当し、`/py/...
 - German and Russian not yet added.
 
 - **Windows ARM64(Snapdragon)ホイール**(2026-11-15、`wheels.yml`に`windows-11-arm`を追加): GitHub ActionsのARM64ランナーでホイールをビルドし、ホイール内でRustバックエンド確認+等価性テストが合格(6環境すべて成功、Release添付はタグ時)。実機のSnapdragon PCは未確認。
+
+## MFastAPI - 多言語の説明 / Multilingual description (13 languages)
+
+公開ページ / Pages: https://easy-web.tokyo/MFastAPI ・ https://easy-web.tokyo/MFastAPI/demo (ダウンロード専用 / download-only)
+
+- **日本語**: FastAPI互換のPython Webフレームワーク。核心部(ルーティングと入力検証)をRustで高速化。
+- **English**: A FastAPI-compatible Python web framework whose core (routing and input validation) runs in Rust for speed.
+- **中文(简体)**: 与 FastAPI 兼容的 Python Web 框架,核心部分(路由与输入校验)使用 Rust 加速。
+- **中文(台灣・繁體)**: 相容 FastAPI 的 Python Web 框架,核心部分(路由與輸入驗證)以 Rust 加速。
+- **한국어**: FastAPI와 호환되는 Python 웹 프레임워크로, 핵심(라우팅과 입력 검증)을 Rust로 가속합니다.
+- **Italiano**: Un framework web Python compatibile con FastAPI, il cui nucleo (routing e validazione degli input) è accelerato in Rust.
+- **Français**: Un framework web Python compatible FastAPI dont le cœur (routage et validation des entrées) est accéléré en Rust.
+- **Deutsch**: Ein FastAPI-kompatibles Python-Webframework, dessen Kern (Routing und Eingabeprüfung) in Rust beschleunigt wird.
+- **Русский**: Python-веб-фреймворк, совместимый с FastAPI; его ядро (маршрутизация и проверка входных данных) ускорено на Rust.
+- **Українська**: Python-вебфреймворк, сумісний із FastAPI; його ядро (маршрутизація та перевірка вхідних даних) прискорено на Rust.
+- **فارسی (ایران)**: چارچوب وب پایتونی سازگار با FastAPI که هستهٔ آن (مسیریابی و اعتبارسنجی ورودی) با Rust سرعت گرفته است.
+- **العربية**: إطار عمل ويب بلغة Python متوافق مع FastAPI، وقد جرى تسريع نواته (التوجيه والتحقق من المدخلات) باستخدام Rust.
+- **עברית (ישראל)**: מסגרת אינטרנט בפייתון התואמת ל-FastAPI, שליבתה (ניתוב ואימות קלט) מואצת ב-Rust.
+
+Download: https://github.com/aon-co-jp/MFastAPI/releases/latest
