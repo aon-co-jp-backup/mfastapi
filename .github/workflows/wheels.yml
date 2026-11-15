@@ -40,6 +40,47 @@ jobs:
           name: wheels-${{ matrix.os }}
           path: wheelhouse/*.whl
 
+  server:
+    # Rust demo/reference server (pure-Rust handlers) as a standalone binary per platform
+    name: server (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: ubuntu-latest, name: linux-x86_64, exe: mfastapi-server }
+          - { os: ubuntu-24.04-arm, name: linux-aarch64, exe: mfastapi-server }
+          - { os: windows-latest, name: windows-x86_64, exe: mfastapi-server.exe }
+          - { os: windows-11-arm, name: windows-arm64, exe: mfastapi-server.exe }
+          - { os: macos-15-intel, name: macos-x86_64, exe: mfastapi-server }
+          - { os: macos-latest, name: macos-arm64, exe: mfastapi-server }
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rust toolchain (Windows ARM64 runner)
+        if: matrix.os == 'windows-11-arm'
+        run: |
+          if (-not (Get-Command rustup -ErrorAction SilentlyContinue)) {
+            Invoke-WebRequest https://win.rustup.rs/aarch64 -OutFile rustup-init.exe
+            ./rustup-init.exe -y --default-host aarch64-pc-windows-msvc --profile minimal
+            echo "$env:USERPROFILE/.cargo/bin" >> $env:GITHUB_PATH
+          }
+      - run: cargo build --release --manifest-path rust/mfastapi-server/Cargo.toml
+      - name: smoke test (GET /fib/10 -> 55)
+        shell: bash
+        run: |
+          rust/mfastapi-server/target/release/${{ matrix.exe }} c 18080 &
+          sleep 2
+          test "$(curl -s http://127.0.0.1:18080/fib/10)" = "55"
+      - name: package
+        shell: bash
+        run: |
+          mkdir out
+          cp rust/mfastapi-server/target/release/${{ matrix.exe }} "out/mfastapi-server-${{ matrix.name }}${{ endsWith(matrix.exe, '.exe') && '.exe' || '' }}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: server-${{ matrix.name }}
+          path: out/*
+
   sdist:
     runs-on: ubuntu-latest
     steps:
@@ -53,7 +94,7 @@ jobs:
   release:
     # タグ(v*)のときだけ、全ホイールとsdistをGitHub Releaseに添付する(PyPIへは上げない)。
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [wheels, sdist]
+    needs: [wheels, sdist, server]
     runs-on: ubuntu-latest
     permissions:
       contents: write
