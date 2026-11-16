@@ -1,6 +1,6 @@
 //! MFastAPI HTTP server layer (Rust). Routing uses the Starlette-compatible route table from `mfastapi-core`; validation errors are
 //! FastAPI/Pydantic-identical 422 responses; `/openapi.json` (OpenAPI 3.1) and `/docs` are served. Handlers are plain Rust closures
-//! (stage C) or call into embedded Python (stage B, feature `python`). Only GET is implemented (others -> 405).
+//! (stage C) or call into embedded Python (stage B, feature `python`). GET/HEAD/POST/PUT/PATCH/DELETE with JSON bodies; a path match with the wrong method gives 405 + Allow.
 use mfastapi_core::matcher::Table;
 use mfastapi_core::{parse_int, query_last};
 use serde_json::{json, Map, Value};
@@ -9,6 +9,36 @@ use std::collections::HashMap;
 #[cfg(feature = "python")]
 pub mod pybridge;
 pub mod server;
+
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum Method {
+    Get,
+    Post,
+    Put,
+    Patch,
+    Delete,
+}
+impl Method {
+    pub fn parse(s: &str) -> Option<Method> {
+        Some(match s {
+            "GET" | "HEAD" => Method::Get,
+            "POST" => Method::Post,
+            "PUT" => Method::Put,
+            "PATCH" => Method::Patch,
+            "DELETE" => Method::Delete,
+            _ => return None,
+        })
+    }
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            Method::Get => "GET",
+            Method::Post => "POST",
+            Method::Put => "PUT",
+            Method::Patch => "PATCH",
+            Method::Delete => "DELETE",
+        }
+    }
+}
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
@@ -49,7 +79,7 @@ pub enum Val {
 }
 
 #[derive(Default)]
-pub struct Args(HashMap<&'static str, Val>);
+pub struct Args(HashMap<&'static str, Val>, Option<Value>);
 
 impl Args {
     pub fn int(&self, name: &str) -> i64 {
@@ -57,6 +87,10 @@ impl Args {
             Some(Val::Int(v)) => *v,
             _ => 0,
         }
+    }
+    /// Parsed JSON request body (None when the route takes no body).
+    pub fn json(&self) -> Option<&Value> {
+        self.1.as_ref()
     }
     pub fn str(&self, name: &str) -> &str {
         match self.0.get(name) {
@@ -70,11 +104,12 @@ pub struct Resp {
     pub status: u16,
     pub ctype: &'static str,
     pub body: String,
+    pub allow: Option<String>,
 }
 
 impl Resp {
     pub fn json(status: u16, body: String) -> Resp {
-        Resp { status, ctype: "application/json", body }
+        Resp { status, ctype: "application/json", body, allow: None }
     }
     pub fn detail(status: u16, msg: &str) -> Resp {
         Resp::json(status, json!({ "detail": msg }).to_string())
@@ -84,6 +119,9 @@ impl Resp {
 pub type Handler = Box<dyn Fn(&Args) -> Resp + Send + Sync>;
 
 pub struct Route {
+    pub method: Method,
+    /// Route reads a required JSON body (FastAPI body parameter).
+    pub body: bool,
     pub path: &'static str, // FastAPI style, e.g. "/fib/{n}"
     pub name: &'static str,
     pub params: Vec<Param>,
@@ -136,9 +174,10 @@ fn title(name: &str) -> String {
     out
 }
 
-fn op_id(name: &str, path: &str) -> String {
+fn op_id(name: &str, path: &str, method: Method) -> String {
     let mut s: String = name.chars().chain(path.chars()).map(|c| if c.is_ascii_alphanumeric() { c } else { '_' }).collect();
-    s.push_str("_get");
+    s.push('_');
+    s.push_str(&method.as_str().to_lowercase());
     s
 }
 
@@ -169,9 +208,12 @@ impl App {
                 .collect();
             let mut op = Map::new();
             op.insert("summary".into(), json!(title(r.name)));
-            op.insert("operationId".into(), json!(op_id(r.name, r.path)));
+            op.insert("operationId".into(), json!(op_id(r.name, r.path, r.method)));
             if !params.is_empty() {
                 op.insert("parameters".into(), json!(params));
+            }
+            if r.body {
+                op.insert("requestBody".into(), json!({"required": true, "content": {"application/json": {"schema": {}}}}));
             }
             let mut responses = Map::new();
             responses.insert(
@@ -179,14 +221,15 @@ impl App {
                 json!({"description": "Successful Response", "content": {"application/json": {"schema": {
                     "type": if r.returns == Kind::Int { "integer" } else { "string" }, "title": format!("Response {}", title(r.name))}}}}),
             );
-            if !r.params.is_empty() {
+            if !r.params.is_empty() || r.body {
                 responses.insert(
                     "422".into(),
                     json!({"description": "Validation Error", "content": {"application/json": {"schema": {"$ref": "#/components/schemas/HTTPValidationError"}}}}),
                 );
             }
             op.insert("responses".into(), Value::Object(responses));
-            paths.insert(r.path.to_string(), json!({ "get": op }));
+            let entry = paths.entry(r.path.to_string()).or_insert_with(|| json!({}));
+            entry[r.method.as_str().to_lowercase()] = Value::Object(op);
         }
         json!({
             "openapi": "3.1.0",
@@ -212,20 +255,50 @@ impl App {
         .to_string()
     }
 
-    /// Handle one GET request (raw, still percent-encoded path and raw query string).
-    pub fn handle(&self, raw_path: &str, query: &str) -> Resp {
+    /// Handle one request (raw, still percent-encoded path, raw query string, raw body bytes).
+    pub fn handle(&self, method: &str, raw_path: &str, query: &str, body: &[u8]) -> Resp {
         let path = unquote(raw_path);
-        match path.as_str() {
-            "/openapi.json" => return Resp::json(200, self.openapi()),
-            "/docs" => return Resp { status: 200, ctype: "text/html; charset=utf-8", body: App::docs_html() },
-            "/health" => return Resp::json(200, "{\"status\":\"ok\"}".into()),
-            _ => {}
+        let m = match Method::parse(method) {
+            Some(m) => m,
+            None => return Resp::detail(405, "Method Not Allowed"),
+        };
+        if m == Method::Get {
+            match path.as_str() {
+                "/openapi.json" => return Resp::json(200, self.openapi()),
+                "/docs" => return Resp { status: 200, ctype: "text/html; charset=utf-8", body: App::docs_html(), allow: None },
+                "/health" => return Resp::json(200, "{\"status\":\"ok\"}".into()),
+                _ => {}
+            }
         }
-        let idx = self.table.first_match_from(path.as_bytes(), 0);
-        if idx < 0 {
-            return Resp::detail(404, "Not Found");
+        let mut start = 0usize;
+        let mut allowed: Vec<&'static str> = Vec::new();
+        let mut found: Option<usize> = None;
+        loop {
+            let idx = self.table.first_match_from(path.as_bytes(), start as i32);
+            if idx < 0 {
+                break;
+            }
+            let i = idx as usize;
+            if self.routes[i].method == m {
+                found = Some(i);
+                break;
+            }
+            let name = self.routes[i].method.as_str();
+            if !allowed.contains(&name) {
+                allowed.push(name);
+            }
+            start = i + 1;
         }
-        let route = &self.routes[idx as usize];
+        let idx = match found {
+            Some(i) => i,
+            None if !allowed.is_empty() => {
+                let mut r = Resp::detail(405, "Method Not Allowed");
+                r.allow = Some(allowed.join(", "));
+                return r;
+            }
+            None => return Resp::detail(404, "Not Found"),
+        };
+        let route = &self.routes[idx];
         // path params: whole-segment {name} / {name:type}
         let mut pvals: HashMap<&str, &str> = HashMap::new();
         let tsegs: Vec<&str> = route.path.split('/').collect();
@@ -269,6 +342,17 @@ impl App {
                         }
                     },
                 },
+            }
+        }
+        if route.body {
+            if body.iter().all(|c| c.is_ascii_whitespace()) {
+                errors.push(json!({"type": "missing", "loc": ["body"], "msg": "Field required", "input": Value::Null}));
+            } else {
+                match serde_json::from_slice::<Value>(body) {
+                    Ok(v) => args.1 = Some(v),
+                    Err(e) => errors.push(json!({"type": "json_invalid", "loc": ["body", e.column().saturating_sub(1)],
+                        "msg": "JSON decode error", "input": {}, "ctx": {"error": e.to_string()}})),
+                }
             }
         }
         if !errors.is_empty() {

@@ -65,12 +65,15 @@ jobs:
             echo "$env:USERPROFILE/.cargo/bin" >> $env:GITHUB_PATH
           }
       - run: cargo build --release --manifest-path rust/mfastapi-server/Cargo.toml
-      - name: smoke test (GET /fib/10 -> 55)
+      - name: smoke test (GET /fib/10 -> 55, POST /echo, 405)
         shell: bash
         run: |
           rust/mfastapi-server/target/release/${{ matrix.exe }} c 18080 &
           sleep 2
           test "$(curl -s http://127.0.0.1:18080/fib/10)" = "55"
+          test "$(curl -s -X POST http://127.0.0.1:18080/echo -d '{"a":1}')" = '{"a":1}'
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X PUT http://127.0.0.1:18080/echo)" = "405"
+          test "$(curl -s -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:18080/echo -d '{bad')" = "422"
       - name: package
         shell: bash
         run: |

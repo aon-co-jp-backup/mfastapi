@@ -1,7 +1,7 @@
 //! Demo server with the same routes as the Mojo stage-C / stage-B servers (and the FastAPI reference app in tests/mojo_endpoint).
 //! Usage: mfastapi-server c <port>                       (pure Rust handlers)
 //!        mfastapi-server b <port> <dir-with-pyhandlers>  (needs --features python)
-use mfastapi_server::{server, App, Args, Kind, Param, Resp, Route};
+use mfastapi_server::{server, App, Args, Kind, Method, Param, Resp, Route};
 
 fn fib(n: i64) -> i64 {
     if n < 2 {
@@ -48,8 +48,10 @@ fn rust_fib(max: i64) -> impl Fn(&Args) -> Resp + Send + Sync {
 
 fn routes_c() -> Vec<Route> {
     vec![
-        Route { path: "/fib/{n}", name: "fib", params: vec![Param::path("n", Kind::Int)], returns: Kind::Int, handler: Box::new(rust_fib(45)) },
+        Route { method: Method::Get, body: false, path: "/fib/{n}", name: "fib", params: vec![Param::path("n", Kind::Int)], returns: Kind::Int, handler: Box::new(rust_fib(45)) },
         Route {
+            method: Method::Get,
+            body: false,
             path: "/primes",
             name: "primes",
             params: vec![Param::query("n", Kind::Int).default_int(1000)],
@@ -63,11 +65,31 @@ fn routes_c() -> Vec<Route> {
             }),
         },
         Route {
+            method: Method::Get,
+            body: false,
             path: "/words",
             name: "words",
             params: vec![Param::query("text", Kind::Str)],
             returns: Kind::Int,
             handler: Box::new(|a| Resp::json(200, words(a.str("text")).to_string())),
+        },
+        Route {
+            method: Method::Post,
+            body: true,
+            path: "/echo",
+            name: "echo",
+            params: vec![],
+            returns: Kind::Str,
+            handler: Box::new(|a| Resp::json(200, a.json().map(|v| v.to_string()).unwrap_or_default())),
+        },
+        Route {
+            method: Method::Delete,
+            body: false,
+            path: "/echo",
+            name: "echo_delete",
+            params: vec![],
+            returns: Kind::Str,
+            handler: Box::new(|_| Resp::json(200, "{\"deleted\":true}".into())),
         },
     ]
 }
@@ -77,6 +99,8 @@ fn routes_b() -> Vec<Route> {
     use mfastapi_server::pybridge::call;
     vec![
         Route {
+            method: Method::Get,
+            body: false,
             path: "/py/hello/{name}",
             name: "py_hello",
             params: vec![Param::path("name", Kind::Str)],
@@ -84,6 +108,8 @@ fn routes_b() -> Vec<Route> {
             handler: Box::new(|a| call("greet", a.str("name"))),
         },
         Route {
+            method: Method::Get,
+            body: false,
             path: "/py/fib/{n}",
             name: "py_fib",
             params: vec![Param::path("n", Kind::Int)],
@@ -97,13 +123,15 @@ fn routes_b() -> Vec<Route> {
             }),
         },
         Route {
+            method: Method::Get,
+            body: false,
             path: "/py/stats",
             name: "py_stats",
             params: vec![Param::query("csv", Kind::Str)],
             returns: Kind::Str,
             handler: Box::new(|a| call("stats", a.str("csv"))),
         },
-        Route { path: "/fib/{n}", name: "fib", params: vec![Param::path("n", Kind::Int)], returns: Kind::Int, handler: Box::new(rust_fib(45)) },
+        Route { method: Method::Get, body: false, path: "/fib/{n}", name: "fib", params: vec![Param::path("n", Kind::Int)], returns: Kind::Int, handler: Box::new(rust_fib(45)) },
     ]
 }
 
