@@ -5,6 +5,8 @@ on:
   push:
     branches: [main]
   pull_request:
+  schedule:
+    - cron: '23 3 * * *'   # 毎日: 最新の上流で再試験
   workflow_dispatch:
 
 jobs:
@@ -13,7 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python: ["3.9", "3.12", "3.14"]
+        python: ["3.9", "3.12", "3.14", "3.x"]
     steps:
       - uses: actions/checkout@v4
       - name: Checkout sibling open-cpu (bundled into mfastapi-server)
@@ -43,3 +45,15 @@ jobs:
           rust/mfastapi-server/target/release/mfastapi-server c 8831 &
           sleep 3
           PYTHONPATH=python:tests/mojo_endpoint python tests/mojo_endpoint/test_mojo_server_compat.py http://127.0.0.1:8831 c
+
+  upstream-issue:
+    # 毎日の定期実行(最新の Python / Flask / Django / FastAPI / Rust で再試験)が失敗したら、日付つきで issue を1件起こす
+    if: failure() && github.event_name == 'schedule'
+    needs: [compat]
+    runs-on: ubuntu-latest
+    permissions: { issues: write }
+    steps:
+      - env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          t="upstream: 最新版での定期試験が失敗 ($(date -u +%F))"
+          gh issue list -R "$GITHUB_REPOSITORY" --state open --search "$t in:title" --json number -q '.[0].number' | grep -q . ||             gh issue create -R "$GITHUB_REPOSITORY" --title "$t" --body "最新の上流(Python・Flask・Django・FastAPI・Starlette・Rust・Mojo)で定期試験が失敗しました。実行: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
