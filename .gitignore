@@ -7,3 +7,4 @@ build/
 dist/
 *.whl
 *.pyc
+rust/mfastapi-server/target/
