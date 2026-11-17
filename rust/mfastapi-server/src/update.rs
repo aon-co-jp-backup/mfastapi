@@ -40,6 +40,9 @@ pub fn is_newer(tag: &str, current: &str) -> bool {
 
 /// このOS・CPU向けの資産名(無ければ None)。
 pub fn asset_name() -> Option<&'static str> {
+    if cfg!(target_os = "android") {
+        return Some("mfastapi-server-android-aarch64");
+    }
     if cfg!(all(target_os = "linux", target_arch = "x86_64")) {
         return Some("mfastapi-server-linux-x86_64");
     }
