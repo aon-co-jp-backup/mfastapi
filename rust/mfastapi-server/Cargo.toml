@@ -11,6 +11,8 @@ python = ["dep:pyo3"]
 
 [dependencies]
 mfastapi-core = { path = "../mfastapi-core" }
+# CPU命令セット検出・コア構成(big.LITTLEの高性能コア数からワーカースレッド数を決める)。兄弟リポジトリ F:\open-cpu をソースごと同梱ビルドする
+open-cpu = { path = "../../../open-cpu" }
 tokio = { version = "1", features = ["rt-multi-thread", "net", "macros"] }
 hyper = { version = "1", features = ["server", "http1"] }
 hyper-util = { version = "0.1", features = ["tokio"] }

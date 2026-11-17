@@ -6,6 +6,7 @@ use mfastapi_core::{parse_int, query_last};
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 
+pub mod cpu;
 #[cfg(feature = "python")]
 pub mod pybridge;
 pub mod server;

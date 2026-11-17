@@ -135,9 +135,17 @@ fn routes_b() -> Vec<Route> {
     ]
 }
 
-#[tokio::main]
-async fn main() -> std::io::Result<()> {
+fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
+    if args.get(1).map(String::as_str) == Some("--cpu") {
+        print!("{}", mfastapi_server::cpu::report());
+        return Ok(());
+    }
+    // ワーカースレッド数は open-cpu のコア構成から決める(MFASTAPI_THREADS で上書き可)
+    tokio::runtime::Builder::new_multi_thread().worker_threads(mfastapi_server::cpu::worker_threads()).enable_all().build()?.block_on(serve(args))
+}
+
+async fn serve(args: Vec<String>) -> std::io::Result<()> {
     let mode = args.get(1).map(String::as_str).unwrap_or("c");
     let port = args.get(2).map(String::as_str).unwrap_or("8080");
     let routes = match mode {

@@ -16,6 +16,10 @@ jobs:
         python: ["3.9", "3.12", "3.14"]
     steps:
       - uses: actions/checkout@v4
+      - name: Checkout sibling open-cpu (bundled into mfastapi-server)
+        shell: bash
+        run: |
+          [ -d "$GITHUB_WORKSPACE/../open-cpu" ] || git clone --depth 1 https://github.com/aon-co-jp/open-cpu.git "$GITHUB_WORKSPACE/../open-cpu"
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python }}
