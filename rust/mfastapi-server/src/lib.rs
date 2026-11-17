@@ -2,7 +2,8 @@
 //! FastAPI/Pydantic-identical 422 responses; `/openapi.json` (OpenAPI 3.1) and `/docs` are served. Handlers are plain Rust closures
 //! (stage C) or call into embedded Python (stage B, feature `python`). GET/HEAD/POST/PUT/PATCH/DELETE with JSON bodies; a path match with the wrong method gives 405 + Allow.
 use mfastapi_core::matcher::Table;
-use mfastapi_core::{parse_int, query_last};
+use mfastapi_core::parse_int;
+use crate::cpu::query_last;
 use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 
