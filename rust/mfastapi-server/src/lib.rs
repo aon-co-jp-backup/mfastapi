@@ -8,6 +8,7 @@ use serde_json::{json, Map, Value};
 use std::collections::HashMap;
 
 pub mod cpu;
+pub mod update;
 #[cfg(feature = "python")]
 pub mod pybridge;
 pub mod server;

@@ -137,6 +137,34 @@ fn routes_b() -> Vec<Route> {
 
 fn main() -> std::io::Result<()> {
     let args: Vec<String> = std::env::args().collect();
+    use mfastapi_server::update;
+    update::on_startup(&args); // 起動時の自動バージョンアップ(24時間に1回、切り離して確認。MFASTAPI_NO_UPDATE=1 で停止)
+    match args.get(1).map(String::as_str) {
+        Some(update::WORKER_ARG) => {
+            if let Err(e) = update::run_worker() {
+                if let Some(h) = std::env::var_os("HOME").or_else(|| std::env::var_os("USERPROFILE")) {
+                    let _ = std::fs::write(std::path::Path::new(&h).join(".mfastapi").join("last_error"), e);
+                }
+            }
+            return Ok(());
+        }
+        Some("update") if update::disabled() => {
+            println!("mfastapi-server: 自動更新は無効です(環境変数 MFASTAPI_NO_UPDATE または CI が設定されています)");
+            return Ok(());
+        }
+        Some("update") => {
+            match update::run_worker() {
+                Ok(Some(v)) => println!("mfastapi-server: {v} に更新しました"),
+                Ok(None) => println!("mfastapi-server: 最新です({})", update::CURRENT),
+                Err(e) => {
+                    eprintln!("mfastapi-server: 更新できません: {e}");
+                    std::process::exit(1);
+                }
+            }
+            return Ok(());
+        }
+        _ => {}
+    }
     if args.get(1).map(String::as_str) == Some("--cpu") {
         print!("{}", mfastapi_server::cpu::report());
         return Ok(());

@@ -180,6 +180,9 @@ def accelerate(target: Any) -> Any:
     """Starlette/FastAPI のアプリ(または Router)のルート探索を高速化する。戻り値は同じオブジェクト。"""
     if os.environ.get("MFASTAPI_DISABLE"):
         return target  # 運用上の安全弁: 環境変数で一括して無効化できる
+    from ._autoupdate import maybe_start
+
+    maybe_start()  # 起動時の自動バージョンアップ(24時間に1回、切り離して確認。MFASTAPI_NO_UPDATE=1 で停止)
     if _ext is None:
         warnings.warn("no mfastapi extension available (Mojo/C); routing is not accelerated and works as before", RuntimeWarning)
         return target

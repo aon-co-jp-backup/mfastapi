@@ -1,6 +1,6 @@
 [package]
 name = "mfastapi-server"
-version = "0.1.0"
+version = "0.2.5"
 edition = "2021"
 description = "MFastAPI HTTP server layer in Rust: FastAPI-compatible routing, 422 validation errors, OpenAPI/docs; handlers in Rust or Python"
 license = "MIT"

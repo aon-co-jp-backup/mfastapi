@@ -111,6 +111,8 @@ jobs:
         with:
           path: artifacts
           merge-multiple: true
+      - name: sha256 for every asset (used by the startup self-update to verify downloads)
+        run: cd artifacts && for f in *; do sha256sum "$f" > "$f.sha256"; done
       - name: Create release
         env:
           GH_TOKEN: ${{ github.token }}

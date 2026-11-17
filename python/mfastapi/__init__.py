@@ -5,7 +5,12 @@ from .accel import accelerate, backend
 from .mojo import mojo_endpoint
 
 __all__ = ["collect_ir", "ir_to_openapi_skeleton", "diff_openapi", "accelerate", "backend", "mojo_endpoint"]
-__version__ = "0.1.1"
+try:  # 配布物の版(pyproject.toml)と一致させる
+    from importlib.metadata import version as _v
+
+    __version__ = _v("mfastapi")
+except Exception:  # 未インストールの作業ツリーなど
+    __version__ = "0"
 
 
 def __getattr__(name):  # PEP 562: fastapi が無い環境でも `import mfastapi` と accelerate は使える
