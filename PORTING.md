@@ -24,3 +24,7 @@
 - **定期試験**: CI を毎日(UTC 03:23)実行し、最新の Python・Flask・Django・FastAPI・Starlette(RMojo は最新の CPython との差分試験)で再試験。失敗したら日付つきの issue を1件起こす。
 - **easy-web.tokyo**: `runo/scripts/refresh_versions.py` を VPS のタイマー(`easy-web-intros-refresh.timer`、1時間ごと)で実行し、MFastAPI・RMojo・2FastAPI・2FastAPI-VSC の最新版と上流(Python・Flask・Django・FastAPI・Starlette・Rust・Mojo)の最新版を各紹介ページと `/demo` に表示(`<製品>/versions.json`)。ページはダウンロード専用のまま。
 - **未了**: 上流の新版が出たときに、利用者の環境(Flask/Django 等)まで自動で上げる機能は無い(本製品が更新するのは本製品自身)。aruaru-llm の同梱は未着手(open-cpu は同梱済み)。iPhone・iPad には対応していない。
+
+## Android(aarch64)向けサーバーと自己更新(2026-11-17)/ Android server and self-update
+**日本語**: v0.2.6 で `mfastapi-server-android-aarch64`(+`.sha256`)をReleaseへ添付。Android 14 実機(arm64)で、起動・`GET /fib/10`=55・`POST /echo`・`PUT`=405を確認し、版を0.0.1に偽装したビルドが `mfastapi-server update` で実リリース v0.2.6 を取得→SHA-256検証→置換→次回起動で通知まで通った。ビルドは `cargo ndk -t arm64-v8a`(`MSYS_NO_PATHCONV` をビルド時に設定しない。adb時だけ要る)。**未了**: PyPI公開(後回し)、iOS/BSD/TV実機。
+**English**: v0.2.6 attaches `mfastapi-server-android-aarch64` (+`.sha256`). On a real Android 14 arm64 phone it starts, answers `GET /fib/10`=55, `POST /echo` and 405 for `PUT`; a build disguised as 0.0.1 ran `mfastapi-server update`, fetched the real v0.2.6, verified SHA-256, replaced itself and announced it on the next start. Build with `cargo ndk -t arm64-v8a` (do not set `MSYS_NO_PATHCONV` while building; only adb needs it). **Open**: PyPI publication (postponed), iOS/BSD/TV devices.
